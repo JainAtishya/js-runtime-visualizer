@@ -43,4 +43,18 @@ export class RuntimeEngine {
     consoleOutput(event) {
         this.state.console.push(event.value);
     }
+
+    reset() {
+        this.state = {
+            callStack: [],
+            webApis: [],
+            microtaskQueue: [],
+            taskQueue: [],
+            eventLoop: {
+                status: "idle"
+            },
+            console: [],
+            status: "idle"
+        };
+    }
 }

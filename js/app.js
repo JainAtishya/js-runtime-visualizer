@@ -1,50 +1,78 @@
 import { RuntimeEngine } from "./runtime/runtime.js";
+import { ExecutionController } from "./runtime/execution.js";
 import { renderRuntime } from "./ui/renderer.js";
-
-import {
-    renderCallStack,
-    renderWebApis,
-    renderMicrotaskQueue,
-    renderTaskQueue,
-    renderEventLoop
-} from "./ui/renderer.js";
 
 
 const runtime = new RuntimeEngine();
 
+const execution = new ExecutionController(
+    runtime,
+    () => {
+        renderRuntime(runtime.state);
+    }
+);
+
 
 const codeEditor = document.getElementById("code-editor");
+
 const runButton = document.getElementById("run-btn");
-const consoleOutput = document.getElementById("console-output");
+const stepButton = document.getElementById("step-btn");
+const pauseButton = document.getElementById("pause-btn");
+const resetButton = document.getElementById("reset-btn");
+
+
+const timeline = [
+    {
+        type: "CALL_START",
+        name: "global"
+    },
+    {
+        type: "CALL_START",
+        name: "main"
+    },
+    {
+        type: "CALL_START",
+        name: "foo"
+    },
+    {
+        type: "CONSOLE_OUTPUT",
+        value: "Hello from foo"
+    },
+    {
+        type: "CALL_END",
+        name: "foo"
+    },
+    {
+        type: "CALL_END",
+        name: "main"
+    },
+    {
+        type: "CALL_END",
+        name: "global"
+    }
+];
+
+
+execution.load(timeline);
 
 
 runButton.addEventListener("click", () => {
-    const code = codeEditor.value;
-
-    runtime.state.status = "running";
-
-    consoleOutput.textContent = `Code received:\n\n${code}`;
+    execution.run();
 });
 
 
-runtime.processEvent({
-    type: "CALL_START",
-    name: "global"
+stepButton.addEventListener("click", () => {
+    execution.step();
 });
 
-runtime.processEvent({
-    type: "CALL_START",
-    name: "main"
+
+pauseButton.addEventListener("click", () => {
+    execution.pause();
 });
 
-runtime.processEvent({
-    type: "CALL_START",
-    name: "foo"
-});
 
-runtime.processEvent({
-    type: "CALL_END",
-    name: "foo"
+resetButton.addEventListener("click", () => {
+    execution.reset();
 });
 
 

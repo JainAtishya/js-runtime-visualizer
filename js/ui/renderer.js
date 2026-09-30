@@ -36,10 +36,21 @@ export function renderEventLoop(eventLoop) {
     eventLoopElement.textContent = eventLoop.status;
 }
 
+export function renderConsole(consoleMessages) {
+    const consoleOutput = document.getElementById("console-output");
+
+    consoleOutput.textContent = "";
+
+    for (const message of consoleMessages) {
+        consoleOutput.textContent += `${message}\n`;
+    }
+}
+
 export function renderRuntime(state) {
     renderCallStack(state.callStack);
     renderWebApis(state.webApis);
     renderMicrotaskQueue(state.microtaskQueue);
     renderTaskQueue(state.taskQueue);
     renderEventLoop(state.eventLoop);
+    renderConsole(state.console);
 }
