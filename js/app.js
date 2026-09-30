@@ -1,3 +1,6 @@
+import { RuntimeEngine } from "./runtime/runtime.js";
+import { renderRuntime } from "./ui/renderer.js";
+
 import {
     renderCallStack,
     renderWebApis,
@@ -7,17 +10,7 @@ import {
 } from "./ui/renderer.js";
 
 
-const runtimeState = {
-    callStack: [],
-    webApis: [],
-    microtaskQueue: [],
-    taskQueue: [],
-    eventLoop: {
-        status: "idle"
-    },
-    console: [],
-    status: "idle"
-};
+const runtime = new RuntimeEngine();
 
 
 const codeEditor = document.getElementById("code-editor");
@@ -28,27 +21,31 @@ const consoleOutput = document.getElementById("console-output");
 runButton.addEventListener("click", () => {
     const code = codeEditor.value;
 
-    runtimeState.status = "running";
+    runtime.state.status = "running";
 
     consoleOutput.textContent = `Code received:\n\n${code}`;
 });
 
 
-runtimeState.callStack.push("global");
-runtimeState.callStack.push("main");
+runtime.processEvent({
+    type: "CALL_START",
+    name: "global"
+});
 
-runtimeState.webApis.push("setTimeout");
-runtimeState.webApis.push("fetch");
+runtime.processEvent({
+    type: "CALL_START",
+    name: "main"
+});
 
-runtimeState.microtaskQueue.push("Promise.then");
+runtime.processEvent({
+    type: "CALL_START",
+    name: "foo"
+});
 
-runtimeState.taskQueue.push("setTimeout callback");
+runtime.processEvent({
+    type: "CALL_END",
+    name: "foo"
+});
 
-runtimeState.eventLoop.status = "waiting";
 
-
-renderCallStack(runtimeState.callStack);
-renderWebApis(runtimeState.webApis);
-renderMicrotaskQueue(runtimeState.microtaskQueue);
-renderTaskQueue(runtimeState.taskQueue);
-renderEventLoop(runtimeState.eventLoop);
+renderRuntime(runtime.state);

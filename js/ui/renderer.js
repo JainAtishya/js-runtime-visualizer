@@ -35,3 +35,11 @@ export function renderEventLoop(eventLoop) {
 
     eventLoopElement.textContent = eventLoop.status;
 }
+
+export function renderRuntime(state) {
+    renderCallStack(state.callStack);
+    renderWebApis(state.webApis);
+    renderMicrotaskQueue(state.microtaskQueue);
+    renderTaskQueue(state.taskQueue);
+    renderEventLoop(state.eventLoop);
+}
