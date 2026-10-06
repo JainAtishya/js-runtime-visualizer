@@ -1,65 +1,108 @@
+import { ASTVisitor } from "./ast-visitor.js";
 import { evaluateExpression } from "./expression-evaluator.js";
 
 
-export function generateTimeline() {
+export class EventGenerator extends ASTVisitor {
 
-    const variables = {};
+    constructor() {
+        super();
 
-    const timeline = [];
-
-
-    timeline.push({
-        type: "CALL_START",
-        name: "global"
-    });
+        this.timeline = [];
+        this.variables = {};
+    }
 
 
-    const x = evaluateExpression(10, variables);
+    generate(ast) {
 
-    variables.x = x;
+        this.timeline = [];
+        this.variables = {};
 
-    timeline.push({
-        type: "VARIABLE_DECLARE",
-        name: "x",
-        value: x
-    });
+        this.visit(ast);
 
-
-    const y = evaluateExpression(20, variables);
-
-    variables.y = y;
-
-    timeline.push({
-        type: "VARIABLE_DECLARE",
-        name: "y",
-        value: y
-    });
+        return this.timeline;
+    }
 
 
-    const z = evaluateExpression(
-        {
-            type: "BINARY_EXPRESSION",
-            left: "x",
-            operator: "+",
-            right: "y"
-        },
-        variables
-    );
+    visitProgram(node) {
 
-    variables.z = z;
+        this.timeline.push({
+            type: "CALL_START",
+            name: "global"
+        });
 
-    timeline.push({
-        type: "VARIABLE_DECLARE",
-        name: "z",
-        value: z
-    });
+        for (const statement of node.body) {
+            this.visit(statement);
+        }
 
-
-    timeline.push({
-        type: "CALL_END",
-        name: "global"
-    });
+        this.timeline.push({
+            type: "CALL_END",
+            name: "global"
+        });
+    }
 
 
-    return timeline;
+    visitVariableDeclaration(node) {
+
+        for (const declaration of node.declarations) {
+            this.visit(declaration);
+        }
+    }
+
+
+    visitVariableDeclarator(node) {
+
+        const name = node.id.name;
+
+        const value = this.evaluateNode(node.init);
+
+        this.variables[name] = value;
+
+        this.timeline.push({
+            type: "VARIABLE_DECLARE",
+            name: name,
+            value: value
+        });
+    }
+
+
+    evaluateNode(node) {
+
+        if (!node) {
+            return undefined;
+        }
+
+        switch (node.type) {
+
+            case "Identifier":
+                return this.variables[node.name];
+
+            case "Literal":
+                return node.value;
+
+            case "BinaryExpression":
+                return this.visitBinaryExpression(node);
+
+            default:
+                throw new Error(
+                    `Unsupported expression: ${node.type}`
+                );
+        }
+    }
+
+
+    visitBinaryExpression(node) {
+
+        const left = this.evaluateNode(node.left);
+        const right = this.evaluateNode(node.right);
+
+        return evaluateExpression(
+            {
+                type: "BINARY_EXPRESSION",
+                left: left,
+                operator: node.operator,
+                right: right
+            },
+            this.variables
+        );
+    }
 }
