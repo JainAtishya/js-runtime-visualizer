@@ -15,7 +15,9 @@ function renderList(elementId, items, reverse = false) {
 }
 
 export function renderCallStack(callStack) {
-    renderList("call-stack", callStack, true);
+    const names = callStack.map((context) => context.name);
+
+    renderList("call-stack", names, true);
 }
 
 export function renderWebApis(webApis) {

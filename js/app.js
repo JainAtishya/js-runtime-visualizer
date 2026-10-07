@@ -26,6 +26,8 @@ const resetButton = document.getElementById("reset-btn");
 
 function prepareExecution() {
 
+    runtime.reset();
+
     const code = codeEditor.value;
 
     const ast = parseCode(code);

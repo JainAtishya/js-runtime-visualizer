@@ -65,6 +65,30 @@ export class EventGenerator extends ASTVisitor {
     }
 
 
+    visitCallExpression(node) {
+
+        const callee = node.callee;
+
+        const isConsoleLog =
+            callee.type === "MemberExpression" &&
+            callee.object.name === "console" &&
+            callee.property.name === "log";
+
+        if (!isConsoleLog) {
+            throw new Error("Only console.log calls are supported");
+        }
+
+        const values = node.arguments.map(
+            (argument) => this.evaluateNode(argument)
+        );
+
+        this.timeline.push({
+            type: "CONSOLE_OUTPUT",
+            value: values.join(" ")
+        });
+    }
+
+
     evaluateNode(node) {
 
         if (!node) {
