@@ -1,11 +1,17 @@
+import { ExecutionContext } from "./execution-context.js";
+
+
 export class RuntimeEngine {
 
     constructor() {
 
         this.state = {
             callStack: [],
+
             webApis: [],
+
             microtaskQueue: [],
+
             taskQueue: [],
 
             eventLoop: {
@@ -13,8 +19,6 @@ export class RuntimeEngine {
             },
 
             console: [],
-
-            variables: {},
 
             status: "idle"
         };
@@ -33,12 +37,12 @@ export class RuntimeEngine {
                 this.callStackEnd(event);
                 break;
 
-            case "CONSOLE_OUTPUT":
-                this.consoleOutput(event);
-                break;
-
             case "VARIABLE_DECLARE":
                 this.variableDeclare(event);
+                break;
+
+            case "CONSOLE_OUTPUT":
+                this.consoleOutput(event);
                 break;
 
             default:
@@ -48,22 +52,75 @@ export class RuntimeEngine {
 
 
     callStackStart(event) {
-        this.state.callStack.push(event.name);
+
+        const context = new ExecutionContext(
+            event.name,
+            event.contextType || "function"
+        );
+
+        this.state.callStack.push(context);
     }
 
 
     callStackEnd(event) {
+
         this.state.callStack.pop();
     }
 
 
-    consoleOutput(event) {
-        this.state.console.push(event.value);
+    variableDeclare(event) {
+
+        const currentContext = this.getCurrentContext();
+
+        if (!currentContext) {
+            console.warn(
+                "Cannot declare variable without execution context"
+            );
+
+            return;
+        }
+
+        currentContext.declareVariable(
+            event.name,
+            event.value
+        );
     }
 
 
-    variableDeclare(event) {
-        this.state.variables[event.name] = event.value;
+    getCurrentContext() {
+
+        if (this.state.callStack.length === 0) {
+            return null;
+        }
+
+        return this.state.callStack[
+            this.state.callStack.length - 1
+        ];
+    }
+
+
+    getVariable(name) {
+
+        for (
+            let i = this.state.callStack.length - 1;
+            i >= 0;
+            i--
+        ) {
+
+            const context = this.state.callStack[i];
+
+            if (context.hasVariable(name)) {
+                return context.getVariable(name);
+            }
+        }
+
+        return undefined;
+    }
+
+
+    consoleOutput(event) {
+
+        this.state.console.push(event.value);
     }
 
 
@@ -71,8 +128,11 @@ export class RuntimeEngine {
 
         this.state = {
             callStack: [],
+
             webApis: [],
+
             microtaskQueue: [],
+
             taskQueue: [],
 
             eventLoop: {
@@ -80,8 +140,6 @@ export class RuntimeEngine {
             },
 
             console: [],
-
-            variables: {},
 
             status: "idle"
         };
