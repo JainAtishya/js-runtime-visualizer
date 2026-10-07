@@ -45,6 +45,18 @@ export class RuntimeEngine {
                 this.consoleOutput(event);
                 break;
 
+            case "TIMER_START":
+                this.timerStart(event);
+                break;
+
+            case "TIMER_DONE":
+                this.timerDone(event);
+                break;
+
+            case "TASK_START":
+                this.taskStart(event);
+                break;
+
             default:
                 console.warn("Unknown event:", event);
         }
@@ -115,6 +127,41 @@ export class RuntimeEngine {
         }
 
         return undefined;
+    }
+
+
+    timerStart(event) {
+
+        this.state.webApis.push({
+            id: event.id,
+            label: event.label
+        });
+    }
+
+
+    timerDone(event) {
+
+        const index = this.state.webApis.findIndex(
+            (item) => item.id === event.id
+        );
+
+        const [item] = this.state.webApis.splice(index, 1);
+
+        this.state.taskQueue.push(item);
+    }
+
+
+    taskStart(event) {
+
+        const index = this.state.taskQueue.findIndex(
+            (item) => item.id === event.id
+        );
+
+        this.state.taskQueue.splice(index, 1);
+
+        this.state.callStack.push(
+            new ExecutionContext(event.name, "callback")
+        );
     }
 
 

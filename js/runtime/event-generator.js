@@ -9,6 +9,9 @@ export class EventGenerator extends ASTVisitor {
 
         this.timeline = [];
         this.variables = {};
+        this.timers = [];
+        this.nextTimerId = 1;
+        this.now = 0;
     }
 
 
@@ -16,6 +19,9 @@ export class EventGenerator extends ASTVisitor {
 
         this.timeline = [];
         this.variables = {};
+        this.timers = [];
+        this.nextTimerId = 1;
+        this.now = 0;
 
         this.visit(ast);
 
@@ -38,6 +44,53 @@ export class EventGenerator extends ASTVisitor {
             type: "CALL_END",
             name: "global"
         });
+
+        this.runTimers();
+    }
+
+
+    runTimers() {
+
+        while (this.timers.length > 0) {
+
+            this.timers.sort(
+                (a, b) => a.time - b.time || a.id - b.id
+            );
+
+            const timer = this.timers.shift();
+
+            this.now = timer.time;
+
+            this.timeline.push({
+                type: "TIMER_DONE",
+                id: timer.id
+            });
+
+            this.timeline.push({
+                type: "TASK_START",
+                id: timer.id,
+                name: "setTimeout callback"
+            });
+
+            this.visitFunctionBody(timer.callback);
+
+            this.timeline.push({
+                type: "CALL_END",
+                name: "setTimeout callback"
+            });
+        }
+    }
+
+
+    visitFunctionBody(fn) {
+
+        if (fn.body.type === "BlockStatement") {
+            for (const statement of fn.body.body) {
+                this.visit(statement);
+            }
+        } else {
+            this.visit(fn.body);
+        }
     }
 
 
@@ -69,6 +122,11 @@ export class EventGenerator extends ASTVisitor {
 
         const callee = node.callee;
 
+        if (callee.type === "Identifier" && callee.name === "setTimeout") {
+            this.addTimer(node);
+            return;
+        }
+
         const isConsoleLog =
             callee.type === "MemberExpression" &&
             callee.object.name === "console" &&
@@ -85,6 +143,27 @@ export class EventGenerator extends ASTVisitor {
         this.timeline.push({
             type: "CONSOLE_OUTPUT",
             value: values.join(" ")
+        });
+    }
+
+
+    addTimer(node) {
+
+        const callback = node.arguments[0];
+        const delay = node.arguments[1] ? node.arguments[1].value : 0;
+
+        const timer = {
+            id: this.nextTimerId++,
+            callback: callback,
+            time: this.now + delay
+        };
+
+        this.timers.push(timer);
+
+        this.timeline.push({
+            type: "TIMER_START",
+            id: timer.id,
+            label: `setTimeout (${delay}ms)`
         });
     }
 

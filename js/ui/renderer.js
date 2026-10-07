@@ -21,7 +21,7 @@ export function renderCallStack(callStack) {
 }
 
 export function renderWebApis(webApis) {
-    renderList("web-apis", webApis);
+    renderList("web-apis", webApis.map((item) => item.label));
 }
 
 export function renderMicrotaskQueue(microtaskQueue) {
@@ -29,7 +29,7 @@ export function renderMicrotaskQueue(microtaskQueue) {
 }
 
 export function renderTaskQueue(taskQueue) {
-    renderList("task-queue", taskQueue);
+    renderList("task-queue", taskQueue.map((item) => item.label));
 }
 
 export function renderEventLoop(eventLoop) {
