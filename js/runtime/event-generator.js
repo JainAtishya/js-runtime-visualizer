@@ -292,7 +292,7 @@ export class EventGenerator extends ASTVisitor {
                 };
 
                 const reaction = {
-                    label: "async/await",
+                    label: `${label} resume`,
                     onFulfilled: continuation,
                     onRejected: null,
                     child: null

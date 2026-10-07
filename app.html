@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Runtime Visualizer</title>
+    <meta name="description" content="Step through JavaScript code and watch the call stack, event loop, promises and queues in real time.">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <header class="app-header">
+        <h1>JS Runtime Visualizer</h1>
+        <p>step through JavaScript and see how it executes</p>
+    </header>
+
+    <main class="app-container">
+
+        <section class="editor-panel">
+
+            <div class="panel-header">
+                <h2>Editor</h2>
+            </div>
+
+            <textarea
+                id="code-editor"
+                spellcheck="false"
+                placeholder="Write your JavaScript here..."
+            ></textarea>
+
+            <div class="editor-controls">
+                <button id="run-btn">Run</button>
+                <button id="step-btn">Step</button>
+                <button id="pause-btn">Pause</button>
+                <button id="reset-btn">Reset</button>
+
+                <select id="speed-select">
+                    <option value="1500">Slow</option>
+                    <option value="1000" selected>Normal</option>
+                    <option value="300">Fast</option>
+                </select>
+
+                <select id="example-select">
+                    <option value="">Load example…</option>
+                    <option value="order">Timeout vs Promise</option>
+                    <option value="chain">Promise chain</option>
+                    <option value="nested">Nested timeouts</option>
+                    <option value="promise">new Promise + timer</option>
+                    <option value="reject">Promise reject + catch</option>
+                    <option value="functions">Functions on call stack</option>
+                    <option value="async">async/await basics</option>
+                    <option value="asyncchain">async/await chain</option>
+                </select>
+            </div>
+
+            <p id="error-message" class="error-message"></p>
+
+        </section>
+
+
+        <section class="runtime-panel">
+
+            <div class="panel-header">
+                <h2>Runtime</h2>
+            </div>
+
+            <div class="runtime-section" id="call-stack-section">
+                <div class="section-title">Call Stack</div>
+                <div id="call-stack" class="runtime-container"></div>
+            </div>
+
+            <div class="runtime-section" id="web-apis-section">
+                <div class="section-title">Web APIs</div>
+                <div id="web-apis" class="runtime-container"></div>
+            </div>
+
+            <div class="runtime-section" id="promises-section">
+                <div class="section-title">Promises</div>
+                <div id="promises" class="runtime-container"></div>
+            </div>
+
+            <div class="runtime-section" id="micro-section">
+                <div class="section-title">Microtask Queue</div>
+                <div id="microtask-queue" class="runtime-container"></div>
+            </div>
+
+            <div class="runtime-section" id="task-section">
+                <div class="section-title">Task Queue</div>
+                <div id="task-queue" class="runtime-container"></div>
+            </div>
+
+            <div class="runtime-section" id="event-loop-section">
+                <div class="section-title">Event Loop</div>
+                <div id="event-loop"></div>
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <section class="console-panel">
+        <div class="panel-header">
+            <h2>Console</h2>
+        </div>
+        <pre id="console-output"></pre>
+    </section>
+
+
+    <script type="module" src="js/app.js"></script>
+
+</body>
+</html>

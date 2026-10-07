@@ -4,111 +4,263 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JS Runtime Visualizer</title>
-    <meta name="description" content="Step through JavaScript code and watch the call stack, event loop, promises and queues in real time.">
-    <link rel="stylesheet" href="css/style.css">
-</head>
+    <meta name="description" content="Step through JavaScript and watch the call stack, event loop, promises and microtasks in real time.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+        :root {
+            --bg:     #111;
+            --panel:  #1c1c1c;
+            --border: #2a2a2a;
+            --accent: #e8a44a;
+            --t1: #e4e4e4;
+            --t2: #888;
+            --t3: #444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--t1);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* nav */
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 52px;
+            padding: 0 32px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-logo {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--t1);
+            text-decoration: none;
+            letter-spacing: -0.2px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-links a {
+            font-size: 13px;
+            color: var(--t2);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .nav-links a:hover { color: var(--t1); }
+
+        .btn-primary {
+            display: inline-block;
+            padding: 7px 16px;
+            background: var(--accent);
+            color: #111;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            border-radius: 3px;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .btn-primary:hover { background: #d4943c; }
+
+        /* hero */
+        .hero {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 80px 32px 60px;
+            max-width: 680px;
+        }
+
+        .hero-tag {
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+            margin-bottom: 24px;
+            letter-spacing: 0.3px;
+        }
+
+        .hero h1 {
+            font-size: clamp(28px, 5vw, 44px);
+            font-weight: 600;
+            line-height: 1.2;
+            letter-spacing: -0.8px;
+            color: var(--t1);
+            margin-bottom: 20px;
+        }
+
+        .hero p {
+            font-size: 15px;
+            color: var(--t2);
+            line-height: 1.7;
+            max-width: 480px;
+            margin-bottom: 36px;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-ghost {
+            font-size: 13px;
+            color: var(--t2);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .btn-ghost:hover { color: var(--t1); }
+
+        /* features */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1px;
+            background: var(--border);
+            border-top: 1px solid var(--border);
+        }
+
+        .feature {
+            background: var(--panel);
+            padding: 28px 28px;
+        }
+
+        .feature-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--t3);
+            margin-bottom: 10px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .feature h3 {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--t1);
+            margin-bottom: 8px;
+        }
+
+        .feature p {
+            font-size: 13px;
+            color: var(--t2);
+            line-height: 1.6;
+        }
+
+        /* code preview */
+        .code-block {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 16px;
+            margin: 40px 32px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #888;
+            max-width: 540px;
+        }
+
+        .code-block .k  { color: #6c9bbf; }   /* keyword */
+        .code-block .s  { color: #6a9f6a; }   /* string */
+        .code-block .fn { color: #b8973a; }   /* function name */
+        .code-block .c  { color: #444; }      /* comment */
+
+        footer {
+            padding: 20px 32px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--t3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        footer a { color: var(--t3); text-decoration: none; }
+        footer a:hover { color: var(--t2); }
+
+        @media (max-width: 600px) {
+            nav { padding: 0 16px; }
+            .hero { padding: 60px 16px 40px; }
+            .code-block { margin: 24px 16px 0; }
+            footer { padding: 16px; flex-direction: column; gap: 8px; }
+        }
+    </style>
+</head>
 <body>
 
-    <header class="app-header">
-        <h1>JS Runtime Visualizer</h1>
-        <p>step through JavaScript and see how it executes</p>
-    </header>
-
-    <main class="app-container">
-
-        <section class="editor-panel">
-
-            <div class="panel-header">
-                <h2>Editor</h2>
-            </div>
-
-            <textarea
-                id="code-editor"
-                spellcheck="false"
-                placeholder="Write your JavaScript here..."
-            ></textarea>
-
-            <div class="editor-controls">
-                <button id="run-btn">Run</button>
-                <button id="step-btn">Step</button>
-                <button id="pause-btn">Pause</button>
-                <button id="reset-btn">Reset</button>
-
-                <select id="speed-select">
-                    <option value="1500">Slow</option>
-                    <option value="1000" selected>Normal</option>
-                    <option value="300">Fast</option>
-                </select>
-
-                <select id="example-select">
-                    <option value="">Load example…</option>
-                    <option value="order">Timeout vs Promise</option>
-                    <option value="chain">Promise chain</option>
-                    <option value="nested">Nested timeouts</option>
-                    <option value="promise">new Promise + timer</option>
-                    <option value="reject">Promise reject + catch</option>
-                    <option value="functions">Functions on call stack</option>
-                    <option value="async">async/await basics</option>
-                    <option value="asyncchain">async/await chain</option>
-                </select>
-            </div>
-
-            <p id="error-message" class="error-message"></p>
-
-        </section>
-
-
-        <section class="runtime-panel">
-
-            <div class="panel-header">
-                <h2>Runtime</h2>
-            </div>
-
-            <div class="runtime-section" id="call-stack-section">
-                <div class="section-title">Call Stack</div>
-                <div id="call-stack" class="runtime-container"></div>
-            </div>
-
-            <div class="runtime-section" id="web-apis-section">
-                <div class="section-title">Web APIs</div>
-                <div id="web-apis" class="runtime-container"></div>
-            </div>
-
-            <div class="runtime-section" id="promises-section">
-                <div class="section-title">Promises</div>
-                <div id="promises" class="runtime-container"></div>
-            </div>
-
-            <div class="runtime-section" id="micro-section">
-                <div class="section-title">Microtask Queue</div>
-                <div id="microtask-queue" class="runtime-container"></div>
-            </div>
-
-            <div class="runtime-section" id="task-section">
-                <div class="section-title">Task Queue</div>
-                <div id="task-queue" class="runtime-container"></div>
-            </div>
-
-            <div class="runtime-section" id="event-loop-section">
-                <div class="section-title">Event Loop</div>
-                <div id="event-loop"></div>
-            </div>
-
-        </section>
-
-    </main>
-
-
-    <section class="console-panel">
-        <div class="panel-header">
-            <h2>Console</h2>
+    <nav>
+        <a href="/" class="nav-logo">JS Runtime Visualizer</a>
+        <div class="nav-links">
+            <a href="https://github.com/JainAtishya/js-runtime-visualizer" target="_blank">GitHub</a>
+            <a href="app.html" class="btn-primary">Open Visualizer →</a>
         </div>
-        <pre id="console-output"></pre>
-    </section>
+    </nav>
 
+    <div class="hero">
+        <p class="hero-tag">// open source developer tool</p>
+        <h1>See exactly how JavaScript executes.</h1>
+        <p>Step through your code and watch the call stack grow, promises settle, microtasks drain, and timers fire — one event at a time.</p>
+        <div class="hero-actions">
+            <a href="app.html" class="btn-primary">Start Visualizing →</a>
+            <a href="https://github.com/JainAtishya/js-runtime-visualizer" target="_blank" class="btn-ghost">View source</a>
+        </div>
+    </div>
 
-    <script type="module" src="js/app.js"></script>
+    <div class="code-block">
+        <span class="c">// paste any JS, press Step, watch it run</span><br>
+        <span class="k">async function</span> <span class="fn">fetchData</span>() {<br>
+        &nbsp;&nbsp;console.log(<span class="s">"fetching..."</span>);<br>
+        &nbsp;&nbsp;<span class="k">const</span> result = <span class="k">await</span> Promise.resolve(<span class="s">"data"</span>);<br>
+        &nbsp;&nbsp;console.log(result);<br>
+        }<br>
+        <br>
+        <span class="fn">fetchData</span>();
+    </div>
+
+    <div class="features">
+        <div class="feature">
+            <div class="feature-label">01</div>
+            <h3>Call Stack</h3>
+            <p>Watch function frames push and pop as your code runs. Understand why execution order works the way it does.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-label">02</div>
+            <h3>Event Loop</h3>
+            <p>See exactly when the event loop checks for microtasks and tasks after the call stack empties.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-label">03</div>
+            <h3>Promises & async/await</h3>
+            <p>Track promise state changes and see async functions suspend and resume as microtasks on each <code>await</code>.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-label">04</div>
+            <h3>Timers</h3>
+            <p>setTimeout callbacks move from Web APIs → Task Queue → Call Stack. See why they always run last.</p>
+        </div>
+    </div>
+
+    <footer>
+        <span>Built to make the JS event loop less mysterious.</span>
+        <a href="https://github.com/JainAtishya/js-runtime-visualizer" target="_blank">GitHub ↗</a>
+    </footer>
 
 </body>
 </html>
