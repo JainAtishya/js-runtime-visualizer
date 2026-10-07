@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>JavaScript Runtime Visualizer</title>
+    <title>JS Runtime Visualizer</title>
+    <meta name="description" content="Step through JavaScript code and watch the call stack, event loop, promises and queues in real time.">
     <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
 
     <header class="app-header">
-        <h1>JavaScript Runtime Visualizer</h1>
-        <p>Understand how JavaScript code executes</p>
+        <h1>JS Runtime Visualizer</h1>
+        <p>step through JavaScript and see how it executes</p>
     </header>
 
     <main class="app-container">
@@ -20,13 +20,13 @@
         <section class="editor-panel">
 
             <div class="panel-header">
-                <h2>Code Editor</h2>
+                <h2>Editor</h2>
             </div>
 
             <textarea
                 id="code-editor"
                 spellcheck="false"
-                placeholder="Write your JavaScript code here..."
+                placeholder="Write your JavaScript here..."
             ></textarea>
 
             <div class="editor-controls">
@@ -42,7 +42,7 @@
                 </select>
 
                 <select id="example-select">
-                    <option value="">Load an example...</option>
+                    <option value="">Load example…</option>
                     <option value="order">Timeout vs Promise</option>
                     <option value="chain">Promise chain</option>
                     <option value="nested">Nested timeouts</option>
@@ -65,41 +65,35 @@
                 <h2>Runtime</h2>
             </div>
 
-            <section class="runtime-section">
-                <h3>Call Stack</h3>
-                <div id="call-stack" class="runtime-container">
-                </div>
-            </section>
+            <div class="runtime-section" id="call-stack-section">
+                <div class="section-title">Call Stack</div>
+                <div id="call-stack" class="runtime-container"></div>
+            </div>
 
-            <section class="runtime-section">
-                <h3>Web APIs</h3>
-                <div id="web-apis" class="runtime-container">
-                </div>
-            </section>
+            <div class="runtime-section" id="web-apis-section">
+                <div class="section-title">Web APIs</div>
+                <div id="web-apis" class="runtime-container"></div>
+            </div>
 
-            <section class="runtime-section">
-                <h3>Promises</h3>
-                <div id="promises" class="runtime-container">
-                </div>
-            </section>
+            <div class="runtime-section" id="promises-section">
+                <div class="section-title">Promises</div>
+                <div id="promises" class="runtime-container"></div>
+            </div>
 
-            <section class="runtime-section">
-                <h3>Microtask Queue</h3>
-                <div id="microtask-queue" class="runtime-container">
-                </div>
-            </section>
+            <div class="runtime-section" id="micro-section">
+                <div class="section-title">Microtask Queue</div>
+                <div id="microtask-queue" class="runtime-container"></div>
+            </div>
 
-            <section class="runtime-section">
-                <h3>Task Queue</h3>
-                <div id="task-queue" class="runtime-container">
-                </div>
-            </section>
+            <div class="runtime-section" id="task-section">
+                <div class="section-title">Task Queue</div>
+                <div id="task-queue" class="runtime-container"></div>
+            </div>
 
-            <section class="runtime-section">
-                <h3>Event Loop</h3>
-                <div id="event-loop" class="runtime-container">
-                </div>
-            </section>
+            <div class="runtime-section" id="event-loop-section">
+                <div class="section-title">Event Loop</div>
+                <div id="event-loop"></div>
+            </div>
 
         </section>
 
@@ -107,13 +101,10 @@
 
 
     <section class="console-panel">
-
         <div class="panel-header">
             <h2>Console</h2>
         </div>
-
         <pre id="console-output"></pre>
-
     </section>
 
 

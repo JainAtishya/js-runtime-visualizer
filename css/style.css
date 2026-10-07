@@ -1,116 +1,279 @@
-* {
-    box-sizing: border-box;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── tokens ── */
+:root {
+    --bg:        #141414;
+    --panel:     #1e1e1e;
+    --inset:     #252525;
+    --border:    #333;
+    --border-2:  #2a2a2a;
+
+    --accent:    #7c6af7;
+    --accent-bg: rgba(124,106,247,0.12);
+    --accent-bd: rgba(124,106,247,0.3);
+
+    --text:      #d4d4d4;
+    --text-2:    #888;
+    --text-3:    #555;
+
+    --green:  #4ec994;
+    --blue:   #5ca8f0;
+    --yellow: #e5c07b;
+    --red:    #e06c75;
+    --purple: #c678dd;
 }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f5f5f5;
-    color: #222;
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    min-height: 100vh;
 }
 
+/* ─── header ─── */
 .app-header {
-    padding: 20px;
-    background: #222;
-    color: white;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+    height: 48px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
 }
 
-.app-header h1,
+.app-header h1 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.2px;
+}
+
 .app-header p {
-    margin: 0;
+    font-size: 12px;
+    color: var(--text-3);
+    border-left: 1px solid var(--border);
+    padding-left: 12px;
+    margin-left: 4px;
 }
 
-.app-header p {
-    margin-top: 6px;
-}
-
+/* ─── layout ─── */
 .app-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    padding: 20px;
+    gap: 1px;
+    background: var(--border);
+    min-height: calc(100vh - 48px - 160px);
 }
 
 .editor-panel,
-.runtime-panel,
-.console-panel {
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+.runtime-panel {
+    background: var(--panel);
     padding: 16px;
 }
 
+/* ─── panel headings ─── */
 .panel-header {
     margin-bottom: 12px;
 }
 
 .panel-header h2 {
-    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text-3);
 }
 
+/* ─── code editor ─── */
 #code-editor {
     width: 100%;
-    min-height: 400px;
+    min-height: 360px;
     resize: vertical;
     padding: 12px;
-    font-family: monospace;
-    font-size: 15px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    background: var(--inset);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    outline: none;
+    caret-color: var(--accent);
+    transition: border-color 0.15s;
 }
 
+#code-editor:focus {
+    border-color: rgba(124,106,247,0.4);
+}
+
+/* ─── controls ─── */
 .editor-controls {
     display: flex;
-    gap: 8px;
-    margin-top: 12px;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    align-items: center;
 }
 
-.editor-controls button,
-.editor-controls select {
-    padding: 8px 14px;
+.editor-controls button {
+    padding: 6px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--inset);
+    color: var(--text-2);
     cursor: pointer;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 
+.editor-controls button:hover {
+    background: #2e2e2e;
+    color: var(--text);
+}
+
+#run-btn {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+#run-btn:hover {
+    background: #6a59e0;
+    color: #fff;
+    border-color: #6a59e0;
+}
+
+.editor-controls select {
+    padding: 6px 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    background: var(--inset);
+    color: var(--text-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+}
+
+.editor-controls select option {
+    background: var(--inset);
+    color: var(--text);
+}
+
+/* ─── error ─── */
 .error-message {
-    margin: 10px 0 0;
-    color: #b00020;
+    margin-top: 8px;
+    padding: 7px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--red);
+    background: rgba(224,108,117,0.08);
+    border-left: 2px solid var(--red);
+    border-radius: 0 3px 3px 0;
+    display: none;
+}
+.error-message:not(:empty) { display: block; }
+
+/* ─── runtime sections ─── */
+.runtime-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
+.runtime-section {}
 
-.runtime-section {
-    margin-bottom: 16px;
-}
-
-.runtime-section h3 {
-    margin-bottom: 8px;
+.section-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 5px;
 }
 
 .runtime-container {
-    min-height: 50px;
-    padding: 10px;
-    background: #f5f5f5;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    min-height: 34px;
+    background: #1b1b1b;
+    border: 1px solid #2d2d2d;
+    border-radius: 4px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
 }
 
+.runtime-container div {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 3px 7px;
+    border-radius: 3px;
+    animation: appear 0.12s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-2);
+}
+
+@keyframes appear {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* each section gets a subtle left border tint on items */
+#call-stack div    { border-left: 2px solid var(--blue); color: var(--blue); background: rgba(92,168,240,0.06); }
+#web-apis div      { border-left: 2px solid var(--yellow); color: var(--yellow); background: rgba(229,192,123,0.06); }
+#promises div      { border-left: 2px solid var(--purple); color: var(--purple); background: rgba(198,120,221,0.06); }
+#microtask-queue div { border-left: 2px solid var(--green); color: var(--green); background: rgba(78,201,148,0.06); }
+#task-queue div    { border-left: 2px solid var(--accent); color: var(--accent); background: rgba(124,106,247,0.06); }
+
+/* event loop just plain text */
+#event-loop {
+    min-height: unset;
+    background: transparent;
+    border: none;
+    padding: 2px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-3);
+}
+
+/* ─── console ─── */
 .console-panel {
-    margin: 0 20px 20px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 14px 16px;
+}
+
+.console-panel .panel-header {
+    margin-bottom: 8px;
 }
 
 #console-output {
-    min-height: 100px;
-    margin: 0;
-    padding: 12px;
-    background: #111;
-    color: #eee;
-    border-radius: 6px;
+    min-height: 80px;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    background: var(--inset);
+    color: var(--green);
+    border: 1px solid var(--border-2);
+    border-radius: 4px;
     overflow-x: auto;
+    white-space: pre-wrap;
 }
 
-@media (max-width: 800px) {
-    .app-container {
-        grid-template-columns: 1fr;
-    }
+/* ─── scrollbars ─── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
-    .console-panel {
-        margin-top: 0;
-    }
+/* ─── responsive ─── */
+@media (max-width: 860px) {
+    .app-container { grid-template-columns: 1fr; }
 }
