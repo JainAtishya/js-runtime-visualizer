@@ -65,6 +65,10 @@ export class RuntimeEngine {
                 this.microtaskStart(event);
                 break;
 
+            case "EVENT_LOOP":
+                this.state.eventLoop.status = event.status;
+                break;
+
             default:
                 console.warn("Unknown event:", event);
         }
@@ -78,6 +82,10 @@ export class RuntimeEngine {
             event.contextType || "function"
         );
 
+        if (this.state.callStack.length === 0) {
+            this.state.eventLoop.status = "running main script";
+        }
+
         this.state.callStack.push(context);
     }
 
@@ -85,6 +93,11 @@ export class RuntimeEngine {
     callStackEnd(event) {
 
         this.state.callStack.pop();
+
+        if (this.state.callStack.length === 0) {
+            this.state.eventLoop.status =
+                "call stack empty, checking microtasks, then tasks";
+        }
     }
 
 
@@ -155,6 +168,8 @@ export class RuntimeEngine {
 
         const [item] = this.state.webApis.splice(index, 1);
 
+        this.state.eventLoop.status = "timer finished, moving callback to task queue";
+
         this.state.taskQueue.push(item);
     }
 
@@ -166,6 +181,8 @@ export class RuntimeEngine {
         );
 
         this.state.taskQueue.splice(index, 1);
+
+        this.state.eventLoop.status = "moving task from task queue to call stack";
 
         this.state.callStack.push(
             new ExecutionContext(event.name, "callback")
@@ -189,6 +206,8 @@ export class RuntimeEngine {
         );
 
         this.state.microtaskQueue.splice(index, 1);
+
+        this.state.eventLoop.status = "moving microtask to call stack";
 
         this.state.callStack.push(
             new ExecutionContext(event.name, "callback")

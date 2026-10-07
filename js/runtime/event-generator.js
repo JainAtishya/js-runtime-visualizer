@@ -131,6 +131,11 @@ export class EventGenerator extends ASTVisitor {
 
             this.runMicrotasks();
         }
+
+        this.timeline.push({
+            type: "EVENT_LOOP",
+            status: "idle, nothing left to run"
+        });
     }
 
 
