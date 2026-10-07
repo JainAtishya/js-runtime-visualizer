@@ -67,7 +67,27 @@ function main() {
 }
 
 main();
-setTimeout(() => greet("later"), 0);`
+setTimeout(() => greet("later"), 0);`,
+
+    async: `async function fetchData() {
+    console.log("fetching...");
+    const result = await Promise.resolve("data");
+    console.log(result);
+}
+
+console.log("start");
+fetchData();
+console.log("end");`,
+
+    asyncchain: `async function run() {
+    const a = await Promise.resolve(1);
+    const b = await Promise.resolve(a + 1);
+    console.log(b);
+}
+
+run();
+setTimeout(() => console.log("timeout"), 0);
+console.log("sync");`
 };
 
 

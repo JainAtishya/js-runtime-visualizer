@@ -180,6 +180,10 @@ export class EventGenerator extends ASTVisitor {
             return args[0];
         }
 
+        if (typeof fn === "function") {
+            return fn(...args);
+        }
+
         this.resolvers = { ...scope };
 
         const outerVariables = this.variables;
@@ -201,6 +205,180 @@ export class EventGenerator extends ASTVisitor {
         this.variables = outerVariables;
 
         return result;
+    }
+
+
+    callAsyncUserFunction(name, fn, args) {
+
+        const returnPromise = this.newPromise();
+        const label = `${name}()`;
+
+        this.timeline.push({ type: "CALL_START", name: label });
+        this.depth++;
+
+        const outerVariables = this.variables;
+        this.variables = { ...outerVariables };
+
+        fn.params.forEach((param, index) => {
+
+            this.variables[param.name] = args[index];
+
+            this.timeline.push({
+                type: "VARIABLE_DECLARE",
+                name: param.name,
+                value: this.show(args[index])
+            });
+        });
+
+        this.runAsyncSegment(
+            fn.body.body,
+            returnPromise,
+            label,
+            outerVariables
+        );
+
+        return returnPromise;
+    }
+
+
+    runAsyncSegment(statements, returnPromise, label, outerVariables) {
+
+        for (let i = 0; i < statements.length; i++) {
+
+            const stmt = statements[i];
+            const info = this.extractAwait(stmt);
+
+            if (info) {
+
+                const awaitedValue = this.evaluateNode(info.expr);
+                const awaitedPromise = this.toPromise(awaitedValue);
+                awaitedPromise.handled = true;
+
+                this.depth--;
+                this.timeline.push({ type: "CALL_END", name: label });
+
+                const remaining = statements.slice(i + 1);
+                const savedVars = { ...this.variables };
+
+                const continuation = (resolvedValue) => {
+
+                    this.timeline.push({ type: "CALL_START", name: label });
+                    this.depth++;
+                    this.variables = { ...savedVars };
+
+                    if (info.varName) {
+                        this.variables[info.varName] = resolvedValue;
+                        this.timeline.push({
+                            type: "VARIABLE_DECLARE",
+                            name: info.varName,
+                            value: this.show(resolvedValue)
+                        });
+                    }
+
+                    if (info.isReturn) {
+                        this.settle(returnPromise, "fulfilled", resolvedValue);
+                        this.depth--;
+                        this.timeline.push({ type: "CALL_END", name: label });
+                        this.variables = outerVariables;
+                        return;
+                    }
+
+                    this.runAsyncSegment(
+                        remaining,
+                        returnPromise,
+                        label,
+                        outerVariables
+                    );
+                };
+
+                const reaction = {
+                    label: "async/await",
+                    onFulfilled: continuation,
+                    onRejected: null,
+                    child: this.newPromise()
+                };
+
+                if (awaitedPromise.state === "pending") {
+                    awaitedPromise.reactions.push(reaction);
+                } else {
+                    this.queueReaction(awaitedPromise, reaction);
+                }
+
+                this.variables = outerVariables;
+                return;
+            }
+
+            try {
+                this.visit(stmt);
+            } catch (signal) {
+                if (signal instanceof ReturnValue) {
+                    this.depth--;
+                    this.settle(returnPromise, "fulfilled", signal.value);
+                    this.timeline.push({ type: "CALL_END", name: label });
+                    this.variables = outerVariables;
+                    return;
+                }
+                throw signal;
+            }
+        }
+
+        this.depth--;
+        this.settle(returnPromise, "fulfilled", undefined);
+        this.timeline.push({ type: "CALL_END", name: label });
+        this.variables = outerVariables;
+    }
+
+
+    extractAwait(stmt) {
+
+        if (
+            stmt.type === "VariableDeclaration" &&
+            stmt.declarations[0].init &&
+            stmt.declarations[0].init.type === "AwaitExpression"
+        ) {
+            return {
+                expr: stmt.declarations[0].init.argument,
+                varName: stmt.declarations[0].id.name,
+                isReturn: false
+            };
+        }
+
+        if (
+            stmt.type === "ExpressionStatement" &&
+            stmt.expression.type === "AwaitExpression"
+        ) {
+            return {
+                expr: stmt.expression.argument,
+                varName: null,
+                isReturn: false
+            };
+        }
+
+        if (
+            stmt.type === "ReturnStatement" &&
+            stmt.argument &&
+            stmt.argument.type === "AwaitExpression"
+        ) {
+            return {
+                expr: stmt.argument.argument,
+                varName: null,
+                isReturn: true
+            };
+        }
+
+        return null;
+    }
+
+
+    toPromise(value) {
+
+        if (value && value.isPromise) {
+            return value;
+        }
+
+        const p = this.newPromise();
+        this.settle(p, "fulfilled", value);
+        return p;
     }
 
 
@@ -526,6 +704,16 @@ export class EventGenerator extends ASTVisitor {
             ? reaction.onFulfilled
             : reaction.onRejected;
 
+        if (typeof handler === "function") {
+            this.addMicrotask(
+                reaction.label,
+                handler,
+                [promise.value],
+                () => {}
+            );
+            return;
+        }
+
         this.addMicrotask(
             reaction.label,
             handler,
@@ -620,6 +808,10 @@ export class EventGenerator extends ASTVisitor {
             throw new JSError(
                 "RangeError: Maximum call stack size exceeded"
             );
+        }
+
+        if (fn.async) {
+            return this.callAsyncUserFunction(name, fn, args);
         }
 
         const label = `${name}()`;
