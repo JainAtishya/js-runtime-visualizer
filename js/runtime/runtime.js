@@ -14,6 +14,8 @@ export class RuntimeEngine {
 
             taskQueue: [],
 
+            promises: [],
+
             eventLoop: {
                 status: "idle"
             },
@@ -63,6 +65,16 @@ export class RuntimeEngine {
 
             case "MICROTASK_START":
                 this.microtaskStart(event);
+                break;
+
+            case "PROMISE_UPDATE":
+                this.promiseUpdate(event);
+                break;
+
+            case "ERROR":
+                this.state.console.push(event.message);
+                this.state.callStack = [];
+                this.state.eventLoop.status = "stopped because of an error";
                 break;
 
             case "EVENT_LOOP":
@@ -215,6 +227,26 @@ export class RuntimeEngine {
     }
 
 
+    promiseUpdate(event) {
+
+        const existing = this.state.promises.find(
+            (item) => item.id === event.id
+        );
+
+        if (existing) {
+            existing.state = event.state;
+            existing.value = event.value;
+            return;
+        }
+
+        this.state.promises.push({
+            id: event.id,
+            state: event.state,
+            value: event.value
+        });
+    }
+
+
     consoleOutput(event) {
 
         this.state.console.push(event.value);
@@ -231,6 +263,8 @@ export class RuntimeEngine {
             microtaskQueue: [],
 
             taskQueue: [],
+
+            promises: [],
 
             eventLoop: {
                 status: "idle"

@@ -43,7 +43,19 @@ console.log("sync");`,
     console.log("outer");
     setTimeout(() => console.log("inner"), 0);
 }, 0);
-setTimeout(() => console.log("slow"), 500);`
+setTimeout(() => console.log("slow"), 500);`,
+
+    promise: `const p = new Promise((resolve) => {
+    console.log("executor");
+    setTimeout(() => resolve("done"), 1000);
+});
+p.then((value) => console.log(value));
+console.log("end");`,
+
+    reject: `Promise.reject("oops")
+    .then(() => console.log("skipped"))
+    .catch((error) => console.log(error));
+console.log("start");`
 };
 
 

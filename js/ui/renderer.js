@@ -24,6 +24,16 @@ export function renderWebApis(webApis) {
     renderList("web-apis", webApis.map((item) => item.label));
 }
 
+export function renderPromises(promises) {
+    const labels = promises.map((promise) => {
+        const value = promise.value === undefined ? "" : ` (${promise.value})`;
+
+        return `Promise ${promise.id}: ${promise.state}${value}`;
+    });
+
+    renderList("promises", labels);
+}
+
 export function renderMicrotaskQueue(microtaskQueue) {
     renderList("microtask-queue", microtaskQueue.map((item) => item.label));
 }
@@ -51,6 +61,7 @@ export function renderConsole(consoleMessages) {
 export function renderRuntime(state) {
     renderCallStack(state.callStack);
     renderWebApis(state.webApis);
+    renderPromises(state.promises);
     renderMicrotaskQueue(state.microtaskQueue);
     renderTaskQueue(state.taskQueue);
     renderEventLoop(state.eventLoop);

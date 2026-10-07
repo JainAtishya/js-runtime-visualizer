@@ -2,32 +2,59 @@ import { ASTVisitor } from "./ast-visitor.js";
 import { evaluateExpression } from "./expression-evaluator.js";
 
 
+class JSError extends Error {}
+
+
 export class EventGenerator extends ASTVisitor {
 
     constructor() {
         super();
 
+        this.reset();
+    }
+
+
+    reset() {
+
         this.timeline = [];
         this.variables = {};
+        this.resolvers = {};
         this.timers = [];
-        this.nextTimerId = 1;
-        this.now = 0;
         this.microtasks = [];
+        this.promises = [];
+        this.now = 0;
+        this.nextTimerId = 1;
         this.nextMicrotaskId = 1;
+        this.nextPromiseId = 1;
     }
 
 
     generate(ast) {
 
-        this.timeline = [];
-        this.variables = {};
-        this.timers = [];
-        this.nextTimerId = 1;
-        this.now = 0;
-        this.microtasks = [];
-        this.nextMicrotaskId = 1;
+        this.reset();
 
-        this.visit(ast);
+        try {
+            this.visit(ast);
+        } catch (error) {
+
+            if (!(error instanceof JSError)) {
+                throw error;
+            }
+
+            this.timeline.push({
+                type: "ERROR",
+                message: `Uncaught ${error.message}`
+            });
+
+            return this.timeline;
+        }
+
+        this.reportUnhandledRejections();
+
+        this.timeline.push({
+            type: "EVENT_LOOP",
+            status: "idle, nothing left to run"
+        });
 
         return this.timeline;
     }
@@ -59,34 +86,39 @@ export class EventGenerator extends ASTVisitor {
         while (this.microtasks.length > 0) {
 
             const task = this.microtasks.shift();
+            const name = `${task.label} callback`;
 
             this.timeline.push({
                 type: "MICROTASK_START",
                 id: task.id,
-                name: `${task.label} callback`
+                name: name
             });
 
-            this.visitFunctionBody(task.callback);
+            const result = this.callFunction(
+                task.callback,
+                task.args,
+                task.scope
+            );
 
             this.timeline.push({
                 type: "CALL_END",
-                name: `${task.label} callback`
+                name: name
             });
 
-            if (task.next.length > 0) {
-                this.addMicrotask(task.label, task.next[0], task.next.slice(1));
-            }
+            task.done(result);
         }
     }
 
 
-    addMicrotask(label, callback, next = []) {
+    addMicrotask(label, callback, args, done = () => {}) {
 
         const task = {
             id: this.nextMicrotaskId++,
             label: label,
             callback: callback,
-            next: next
+            args: args,
+            scope: { ...this.resolvers },
+            done: done
         };
 
         this.microtasks.push(task);
@@ -122,7 +154,7 @@ export class EventGenerator extends ASTVisitor {
                 name: "setTimeout callback"
             });
 
-            this.visitFunctionBody(timer.callback);
+            this.callFunction(timer.callback, [], timer.scope);
 
             this.timeline.push({
                 type: "CALL_END",
@@ -131,22 +163,52 @@ export class EventGenerator extends ASTVisitor {
 
             this.runMicrotasks();
         }
-
-        this.timeline.push({
-            type: "EVENT_LOOP",
-            status: "idle, nothing left to run"
-        });
     }
 
 
-    visitFunctionBody(fn) {
+    callFunction(fn, args, scope) {
 
-        if (fn.body.type === "BlockStatement") {
-            for (const statement of fn.body.body) {
-                this.visit(statement);
+        if (!fn) {
+            return args[0];
+        }
+
+        this.resolvers = { ...scope };
+
+        const outerVariables = this.variables;
+        this.variables = { ...outerVariables };
+
+        fn.params.forEach((param, index) => {
+
+            this.variables[param.name] = args[index];
+
+            this.timeline.push({
+                type: "VARIABLE_DECLARE",
+                name: param.name,
+                value: this.show(args[index])
+            });
+        });
+
+        const result = this.runBody(fn);
+
+        this.variables = outerVariables;
+
+        return result;
+    }
+
+
+    runBody(fn) {
+
+        if (fn.body.type !== "BlockStatement") {
+            return this.evaluateNode(fn.body);
+        }
+
+        for (const statement of fn.body.body) {
+
+            if (statement.type === "ReturnStatement") {
+                return this.evaluateNode(statement.argument);
             }
-        } else {
-            this.visit(fn.body);
+
+            this.visit(statement);
         }
     }
 
@@ -170,41 +232,70 @@ export class EventGenerator extends ASTVisitor {
         this.timeline.push({
             type: "VARIABLE_DECLARE",
             name: name,
-            value: value
+            value: this.show(value)
         });
     }
 
 
     visitCallExpression(node) {
 
+        this.evaluateCall(node);
+    }
+
+
+    evaluateCall(node) {
+
         const callee = node.callee;
 
-        if (callee.type === "Identifier" && callee.name === "setTimeout") {
-            this.addTimer(node);
-            return;
+        if (callee.type === "Identifier") {
+
+            if (callee.name === "setTimeout") {
+                this.addTimer(node);
+                return;
+            }
+
+            if (callee.name === "queueMicrotask") {
+                this.addMicrotask("queueMicrotask", node.arguments[0], []);
+                return;
+            }
+
+            if (this.resolvers[callee.name]) {
+                this.callResolver(callee.name, node);
+                return;
+            }
         }
 
-        if (callee.type === "Identifier" && callee.name === "queueMicrotask") {
-            this.addMicrotask("queueMicrotask", node.arguments[0]);
-            return;
+        if (callee.type === "MemberExpression") {
+
+            const object = callee.object.name;
+            const method = callee.property.name;
+
+            if (object === "console" && method === "log") {
+                this.consoleLog(node);
+                return;
+            }
+
+            if (object === "Promise" && method === "resolve") {
+                return this.settledPromise(node, "fulfilled");
+            }
+
+            if (object === "Promise" && method === "reject") {
+                return this.settledPromise(node, "rejected");
+            }
+
+            if (method === "then" || method === "catch") {
+                return this.addReaction(node);
+            }
         }
 
-        if (callee.type === "MemberExpression" && callee.property.name === "then") {
-            this.addPromiseThen(node);
-            return;
-        }
+        throw new Error("This function call is not supported yet");
+    }
 
-        const isConsoleLog =
-            callee.type === "MemberExpression" &&
-            callee.object.name === "console" &&
-            callee.property.name === "log";
 
-        if (!isConsoleLog) {
-            throw new Error("Only console.log calls are supported");
-        }
+    consoleLog(node) {
 
         const values = node.arguments.map(
-            (argument) => this.evaluateNode(argument)
+            (argument) => this.show(this.evaluateNode(argument))
         );
 
         this.timeline.push({
@@ -214,31 +305,193 @@ export class EventGenerator extends ASTVisitor {
     }
 
 
-    addPromiseThen(node) {
+    newPromise() {
 
-        const callbacks = [];
-        let current = node;
+        const promise = {
+            isPromise: true,
+            id: this.nextPromiseId++,
+            state: "pending",
+            value: undefined,
+            reactions: [],
+            handled: false
+        };
 
-        while (
-            current.type === "CallExpression" &&
-            current.callee.type === "MemberExpression" &&
-            current.callee.property.name === "then"
-        ) {
-            callbacks.unshift(current.arguments[0]);
-            current = current.callee.object;
+        this.promises.push(promise);
+
+        this.timeline.push({
+            type: "PROMISE_UPDATE",
+            id: promise.id,
+            state: promise.state
+        });
+
+        return promise;
+    }
+
+
+    settle(promise, state, value) {
+
+        if (promise.state !== "pending") {
+            return;
         }
 
-        const isPromiseResolve =
-            current.type === "CallExpression" &&
-            current.callee.type === "MemberExpression" &&
-            current.callee.object.name === "Promise" &&
-            current.callee.property.name === "resolve";
+        promise.state = state;
+        promise.value = value;
 
-        if (!isPromiseResolve) {
-            throw new Error("Only Promise.resolve().then(...) is supported");
+        this.timeline.push({
+            type: "PROMISE_UPDATE",
+            id: promise.id,
+            state: state,
+            value: this.show(value)
+        });
+
+        for (const reaction of promise.reactions) {
+            this.queueReaction(promise, reaction);
         }
 
-        this.addMicrotask("Promise.then", callbacks[0], callbacks.slice(1));
+        promise.reactions = [];
+    }
+
+
+    settledPromise(node, state) {
+
+        const promise = this.newPromise();
+
+        const value = node.arguments[0]
+            ? this.evaluateNode(node.arguments[0])
+            : undefined;
+
+        this.settle(promise, state, value);
+
+        return promise;
+    }
+
+
+    createPromise(node) {
+
+        if (node.callee.name !== "Promise") {
+            throw new Error("Only new Promise(...) is supported");
+        }
+
+        const promise = this.newPromise();
+        const executor = node.arguments[0];
+
+        const outerResolvers = this.resolvers;
+        const outerVariables = this.variables;
+
+        this.resolvers = { ...outerResolvers };
+        this.variables = { ...outerVariables };
+
+        const [resolveParam, rejectParam] = executor.params;
+
+        if (resolveParam) {
+            this.resolvers[resolveParam.name] = {
+                promise: promise,
+                state: "fulfilled"
+            };
+        }
+
+        if (rejectParam) {
+            this.resolvers[rejectParam.name] = {
+                promise: promise,
+                state: "rejected"
+            };
+        }
+
+        this.timeline.push({
+            type: "CALL_START",
+            name: "Promise executor"
+        });
+
+        this.runBody(executor);
+
+        this.timeline.push({
+            type: "CALL_END",
+            name: "Promise executor"
+        });
+
+        this.resolvers = outerResolvers;
+        this.variables = outerVariables;
+
+        return promise;
+    }
+
+
+    callResolver(name, node) {
+
+        const resolver = this.resolvers[name];
+
+        const value = node.arguments[0]
+            ? this.evaluateNode(node.arguments[0])
+            : undefined;
+
+        this.settle(resolver.promise, resolver.state, value);
+    }
+
+
+    addReaction(node) {
+
+        const parent = this.evaluateNode(node.callee.object);
+
+        if (!parent || !parent.isPromise) {
+            throw new Error(".then and .catch only work on promises here");
+        }
+
+        const isCatch = node.callee.property.name === "catch";
+        const [first, second] = node.arguments;
+
+        const reaction = {
+            label: isCatch ? "Promise.catch" : "Promise.then",
+            onFulfilled: isCatch ? null : first,
+            onRejected: isCatch ? first : second || null,
+            child: this.newPromise()
+        };
+
+        parent.handled = true;
+
+        if (parent.state === "pending") {
+            parent.reactions.push(reaction);
+        } else {
+            this.queueReaction(parent, reaction);
+        }
+
+        return reaction.child;
+    }
+
+
+    queueReaction(promise, reaction) {
+
+        const handler = promise.state === "fulfilled"
+            ? reaction.onFulfilled
+            : reaction.onRejected;
+
+        this.addMicrotask(
+            reaction.label,
+            handler,
+            [promise.value],
+            (result) => {
+
+                if (handler) {
+                    this.settle(reaction.child, "fulfilled", result);
+                } else {
+                    this.settle(reaction.child, promise.state, promise.value);
+                }
+            }
+        );
+    }
+
+
+    reportUnhandledRejections() {
+
+        for (const promise of this.promises) {
+
+            if (promise.state === "rejected" && !promise.handled) {
+
+                this.timeline.push({
+                    type: "CONSOLE_OUTPUT",
+                    value: `Uncaught (in promise) ${promise.value}`
+                });
+            }
+        }
     }
 
 
@@ -250,7 +503,8 @@ export class EventGenerator extends ASTVisitor {
         const timer = {
             id: this.nextTimerId++,
             callback: callback,
-            time: this.now + delay
+            time: this.now + delay,
+            scope: { ...this.resolvers }
         };
 
         this.timers.push(timer);
@@ -263,6 +517,21 @@ export class EventGenerator extends ASTVisitor {
     }
 
 
+    show(value) {
+
+        if (value && value.isPromise) {
+
+            if (value.state === "pending") {
+                return "Promise {<pending>}";
+            }
+
+            return `Promise {<${value.state}>: ${value.value}}`;
+        }
+
+        return value;
+    }
+
+
     evaluateNode(node) {
 
         if (!node) {
@@ -272,6 +541,17 @@ export class EventGenerator extends ASTVisitor {
         switch (node.type) {
 
             case "Identifier":
+
+                if (node.name === "undefined") {
+                    return undefined;
+                }
+
+                if (!Object.hasOwn(this.variables, node.name)) {
+                    throw new JSError(
+                        `ReferenceError: ${node.name} is not defined`
+                    );
+                }
+
                 return this.variables[node.name];
 
             case "Literal":
@@ -279,6 +559,12 @@ export class EventGenerator extends ASTVisitor {
 
             case "BinaryExpression":
                 return this.visitBinaryExpression(node);
+
+            case "NewExpression":
+                return this.createPromise(node);
+
+            case "CallExpression":
+                return this.evaluateCall(node);
 
             default:
                 throw new Error(
@@ -300,7 +586,7 @@ export class EventGenerator extends ASTVisitor {
                 operator: node.operator,
                 right: right
             },
-            this.variables
+            {}
         );
     }
 }
