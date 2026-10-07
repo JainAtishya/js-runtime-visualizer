@@ -527,7 +527,7 @@ export class EventGenerator extends ASTVisitor {
             }
         }
 
-        throw new Error("This function call is not supported yet");
+        throw new JSError("TypeError: unsupported function call");
     }
 
 
@@ -608,7 +608,7 @@ export class EventGenerator extends ASTVisitor {
     createPromise(node) {
 
         if (node.callee.name !== "Promise") {
-            throw new Error("Only new Promise(...) is supported");
+            throw new JSError("TypeError: only new Promise(...) is supported");
         }
 
         const promise = this.newPromise();
@@ -672,7 +672,7 @@ export class EventGenerator extends ASTVisitor {
         const parent = this.evaluateNode(node.callee.object);
 
         if (!parent || !parent.isPromise) {
-            throw new Error(".then and .catch only work on promises here");
+            throw new JSError("TypeError: .then and .catch only work on promises");
         }
 
         const isCatch = node.callee.property.name === "catch";
@@ -900,14 +900,14 @@ export class EventGenerator extends ASTVisitor {
                 if (node.operator === "!") {
                     return !this.evaluateNode(node.argument);
                 }
-                throw new Error(`Unsupported unary operator: ${node.operator}`);
+                throw new JSError(`TypeError: unsupported unary operator: ${node.operator}`);
 
             case "CallExpression":
                 return this.evaluateCall(node);
 
             default:
-                throw new Error(
-                    `Unsupported expression: ${node.type}`
+                throw new JSError(
+                    `TypeError: ${node.type} is not supported yet`
                 );
         }
     }
