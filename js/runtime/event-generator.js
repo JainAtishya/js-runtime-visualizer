@@ -12,6 +12,8 @@ export class EventGenerator extends ASTVisitor {
         this.timers = [];
         this.nextTimerId = 1;
         this.now = 0;
+        this.microtasks = [];
+        this.nextMicrotaskId = 1;
     }
 
 
@@ -22,6 +24,8 @@ export class EventGenerator extends ASTVisitor {
         this.timers = [];
         this.nextTimerId = 1;
         this.now = 0;
+        this.microtasks = [];
+        this.nextMicrotaskId = 1;
 
         this.visit(ast);
 
@@ -45,7 +49,53 @@ export class EventGenerator extends ASTVisitor {
             name: "global"
         });
 
+        this.runMicrotasks();
         this.runTimers();
+    }
+
+
+    runMicrotasks() {
+
+        while (this.microtasks.length > 0) {
+
+            const task = this.microtasks.shift();
+
+            this.timeline.push({
+                type: "MICROTASK_START",
+                id: task.id,
+                name: `${task.label} callback`
+            });
+
+            this.visitFunctionBody(task.callback);
+
+            this.timeline.push({
+                type: "CALL_END",
+                name: `${task.label} callback`
+            });
+
+            if (task.next.length > 0) {
+                this.addMicrotask(task.label, task.next[0], task.next.slice(1));
+            }
+        }
+    }
+
+
+    addMicrotask(label, callback, next = []) {
+
+        const task = {
+            id: this.nextMicrotaskId++,
+            label: label,
+            callback: callback,
+            next: next
+        };
+
+        this.microtasks.push(task);
+
+        this.timeline.push({
+            type: "MICROTASK_ADD",
+            id: task.id,
+            label: label
+        });
     }
 
 
@@ -78,6 +128,8 @@ export class EventGenerator extends ASTVisitor {
                 type: "CALL_END",
                 name: "setTimeout callback"
             });
+
+            this.runMicrotasks();
         }
     }
 
@@ -127,6 +179,16 @@ export class EventGenerator extends ASTVisitor {
             return;
         }
 
+        if (callee.type === "Identifier" && callee.name === "queueMicrotask") {
+            this.addMicrotask("queueMicrotask", node.arguments[0]);
+            return;
+        }
+
+        if (callee.type === "MemberExpression" && callee.property.name === "then") {
+            this.addPromiseThen(node);
+            return;
+        }
+
         const isConsoleLog =
             callee.type === "MemberExpression" &&
             callee.object.name === "console" &&
@@ -144,6 +206,34 @@ export class EventGenerator extends ASTVisitor {
             type: "CONSOLE_OUTPUT",
             value: values.join(" ")
         });
+    }
+
+
+    addPromiseThen(node) {
+
+        const callbacks = [];
+        let current = node;
+
+        while (
+            current.type === "CallExpression" &&
+            current.callee.type === "MemberExpression" &&
+            current.callee.property.name === "then"
+        ) {
+            callbacks.unshift(current.arguments[0]);
+            current = current.callee.object;
+        }
+
+        const isPromiseResolve =
+            current.type === "CallExpression" &&
+            current.callee.type === "MemberExpression" &&
+            current.callee.object.name === "Promise" &&
+            current.callee.property.name === "resolve";
+
+        if (!isPromiseResolve) {
+            throw new Error("Only Promise.resolve().then(...) is supported");
+        }
+
+        this.addMicrotask("Promise.then", callbacks[0], callbacks.slice(1));
     }
 
 

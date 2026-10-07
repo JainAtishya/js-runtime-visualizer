@@ -25,7 +25,7 @@ export function renderWebApis(webApis) {
 }
 
 export function renderMicrotaskQueue(microtaskQueue) {
-    renderList("microtask-queue", microtaskQueue);
+    renderList("microtask-queue", microtaskQueue.map((item) => item.label));
 }
 
 export function renderTaskQueue(taskQueue) {

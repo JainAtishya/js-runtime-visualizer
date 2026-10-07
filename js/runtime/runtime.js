@@ -57,6 +57,14 @@ export class RuntimeEngine {
                 this.taskStart(event);
                 break;
 
+            case "MICROTASK_ADD":
+                this.microtaskAdd(event);
+                break;
+
+            case "MICROTASK_START":
+                this.microtaskStart(event);
+                break;
+
             default:
                 console.warn("Unknown event:", event);
         }
@@ -158,6 +166,29 @@ export class RuntimeEngine {
         );
 
         this.state.taskQueue.splice(index, 1);
+
+        this.state.callStack.push(
+            new ExecutionContext(event.name, "callback")
+        );
+    }
+
+
+    microtaskAdd(event) {
+
+        this.state.microtaskQueue.push({
+            id: event.id,
+            label: event.label
+        });
+    }
+
+
+    microtaskStart(event) {
+
+        const index = this.state.microtaskQueue.findIndex(
+            (item) => item.id === event.id
+        );
+
+        this.state.microtaskQueue.splice(index, 1);
 
         this.state.callStack.push(
             new ExecutionContext(event.name, "callback")
