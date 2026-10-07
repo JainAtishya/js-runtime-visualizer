@@ -34,7 +34,22 @@
                 <button id="step-btn">Step</button>
                 <button id="pause-btn">Pause</button>
                 <button id="reset-btn">Reset</button>
+
+                <select id="speed-select">
+                    <option value="1500">Slow</option>
+                    <option value="1000" selected>Normal</option>
+                    <option value="300">Fast</option>
+                </select>
+
+                <select id="example-select">
+                    <option value="">Load an example...</option>
+                    <option value="order">Timeout vs Promise</option>
+                    <option value="chain">Promise chain</option>
+                    <option value="nested">Nested timeouts</option>
+                </select>
             </div>
+
+            <p id="error-message" class="error-message"></p>
 
         </section>
 
