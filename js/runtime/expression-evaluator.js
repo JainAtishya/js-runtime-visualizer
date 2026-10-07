@@ -42,6 +42,24 @@ export function evaluateExpression(expression, variables) {
             case "/":
                 return left / right;
 
+            case "===":
+                return left === right;
+
+            case "!==":
+                return left !== right;
+
+            case "<":
+                return left < right;
+
+            case ">":
+                return left > right;
+
+            case "<=":
+                return left <= right;
+
+            case ">=":
+                return left >= right;
+
             default:
                 throw new Error(
                     `Unsupported operator: ${expression.operator}`

@@ -3,6 +3,7 @@ import { evaluateExpression } from "./expression-evaluator.js";
 
 
 class JSError extends Error {}
+class ReturnValue { constructor(value) { this.value = value; } }
 
 
 export class EventGenerator extends ASTVisitor {
@@ -26,6 +27,7 @@ export class EventGenerator extends ASTVisitor {
         this.nextTimerId = 1;
         this.nextMicrotaskId = 1;
         this.nextPromiseId = 1;
+        this.depth = 0;
     }
 
 
@@ -66,6 +68,12 @@ export class EventGenerator extends ASTVisitor {
             type: "CALL_START",
             name: "global"
         });
+
+        for (const statement of node.body) {
+            if (statement.type === "FunctionDeclaration") {
+                this.visitFunctionDeclaration(statement);
+            }
+        }
 
         for (const statement of node.body) {
             this.visit(statement);
@@ -202,14 +210,57 @@ export class EventGenerator extends ASTVisitor {
             return this.evaluateNode(fn.body);
         }
 
-        for (const statement of fn.body.body) {
+        try {
+            this.runStatements(fn.body.body);
+        } catch (signal) {
+            if (signal instanceof ReturnValue) {
+                return signal.value;
+            }
+            throw signal;
+        }
+    }
+
+
+    runStatements(statements) {
+
+        for (const statement of statements) {
 
             if (statement.type === "ReturnStatement") {
-                return this.evaluateNode(statement.argument);
+                throw new ReturnValue(this.evaluateNode(statement.argument));
             }
 
             this.visit(statement);
         }
+    }
+
+
+    visitFunctionDeclaration(node) {
+
+        this.variables[node.id.name] = node;
+    }
+
+
+    visitIfStatement(node) {
+
+        const test = this.evaluateNode(node.test);
+
+        if (test) {
+            this.visit(node.consequent);
+        } else if (node.alternate) {
+            this.visit(node.alternate);
+        }
+    }
+
+
+    visitBlockStatement(node) {
+
+        this.runStatements(node.body);
+    }
+
+
+    visitExpressionStatement(node) {
+
+        this.evaluateNode(node.expression);
     }
 
 
@@ -255,13 +306,23 @@ export class EventGenerator extends ASTVisitor {
             }
 
             if (callee.name === "queueMicrotask") {
-                this.addMicrotask("queueMicrotask", node.arguments[0], []);
+                this.addMicrotask(
+                    "queueMicrotask",
+                    this.resolveFunction(node.arguments[0]),
+                    []
+                );
                 return;
             }
 
             if (this.resolvers[callee.name]) {
                 this.callResolver(callee.name, node);
                 return;
+            }
+
+            const target = this.variables[callee.name];
+
+            if (this.isFunction(target)) {
+                return this.callUserFunction(callee.name, target, node);
             }
         }
 
@@ -437,7 +498,8 @@ export class EventGenerator extends ASTVisitor {
         }
 
         const isCatch = node.callee.property.name === "catch";
-        const [first, second] = node.arguments;
+        const first = this.resolveFunction(node.arguments[0]);
+        const second = this.resolveFunction(node.arguments[1]);
 
         const reaction = {
             label: isCatch ? "Promise.catch" : "Promise.then",
@@ -497,7 +559,7 @@ export class EventGenerator extends ASTVisitor {
 
     addTimer(node) {
 
-        const callback = node.arguments[0];
+        const callback = this.resolveFunction(node.arguments[0]);
         const delay = node.arguments[1] ? node.arguments[1].value : 0;
 
         const timer = {
@@ -517,7 +579,76 @@ export class EventGenerator extends ASTVisitor {
     }
 
 
+    isFunction(value) {
+
+        return Boolean(value) && [
+            "ArrowFunctionExpression",
+            "FunctionExpression",
+            "FunctionDeclaration"
+        ].includes(value.type);
+    }
+
+
+    resolveFunction(node) {
+
+        if (!node) {
+            return null;
+        }
+
+        if (node.type === "Identifier") {
+
+            const target = this.variables[node.name];
+
+            if (!this.isFunction(target)) {
+                throw new JSError(`TypeError: ${node.name} is not a function`);
+            }
+
+            return target;
+        }
+
+        return node;
+    }
+
+
+    callUserFunction(name, fn, node) {
+
+        const args = node.arguments.map(
+            (argument) => this.evaluateNode(argument)
+        );
+
+        if (this.depth >= 50) {
+            throw new JSError(
+                "RangeError: Maximum call stack size exceeded"
+            );
+        }
+
+        const label = `${name}()`;
+
+        this.timeline.push({
+            type: "CALL_START",
+            name: label
+        });
+
+        this.depth++;
+
+        const result = this.callFunction(fn, args, this.resolvers);
+
+        this.depth--;
+
+        this.timeline.push({
+            type: "CALL_END",
+            name: label
+        });
+
+        return result;
+    }
+
+
     show(value) {
+
+        if (this.isFunction(value)) {
+            return "[Function]";
+        }
 
         if (value && value.isPromise) {
 
@@ -562,6 +693,22 @@ export class EventGenerator extends ASTVisitor {
 
             case "NewExpression":
                 return this.createPromise(node);
+
+            case "ArrowFunctionExpression":
+            case "FunctionExpression":
+                return node;
+
+            case "UnaryExpression":
+                if (node.operator === "-") {
+                    return -this.evaluateNode(node.argument);
+                }
+                if (node.operator === "+") {
+                    return +this.evaluateNode(node.argument);
+                }
+                if (node.operator === "!") {
+                    return !this.evaluateNode(node.argument);
+                }
+                throw new Error(`Unsupported unary operator: ${node.operator}`);
 
             case "CallExpression":
                 return this.evaluateCall(node);

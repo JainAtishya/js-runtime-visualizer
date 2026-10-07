@@ -55,7 +55,19 @@ console.log("end");`,
     reject: `Promise.reject("oops")
     .then(() => console.log("skipped"))
     .catch((error) => console.log(error));
-console.log("start");`
+console.log("start");`,
+
+    functions: `function greet(name) {
+    console.log("Hello, " + name + "!");
+}
+
+function main() {
+    greet("Alice");
+    greet("Bob");
+}
+
+main();
+setTimeout(() => greet("later"), 0);`
 };
 
 
