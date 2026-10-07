@@ -295,7 +295,7 @@ export class EventGenerator extends ASTVisitor {
                     label: "async/await",
                     onFulfilled: continuation,
                     onRejected: null,
-                    child: this.newPromise()
+                    child: null
                 };
 
                 if (awaitedPromise.state === "pending") {
