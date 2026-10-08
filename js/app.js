@@ -1,6 +1,6 @@
 import { RuntimeEngine } from "./runtime/runtime.js";
 import { ExecutionController } from "./runtime/execution.js";
-import { renderRuntime, renderHighlighter } from "./ui/renderer.js";
+import { renderRuntime, renderHighlighter, renderNarrator } from "./ui/renderer.js";
 
 import { parseCode } from "./runtime/parser.js";
 import { EventGenerator } from "./runtime/event-generator.js";
@@ -11,8 +11,10 @@ const runtime = new RuntimeEngine();
 const execution = new ExecutionController(
     runtime,
     () => {
+        const event = execution.timeline[execution.currentStep - 1] || null;
         renderRuntime(runtime.state);
         renderHighlighter(codeEditor.value, runtime.state.activeLine);
+        renderNarrator(event);
     }
 );
 
@@ -30,6 +32,7 @@ codeEditor.addEventListener("input", () => {
     if (runtime.state.activeLine !== null) {
         execution.reset();
         errorMessage.textContent = "";
+        renderNarrator(null);
     }
 });
 
@@ -147,6 +150,7 @@ function prepareExecution() {
 
     runtime.reset();
     errorMessage.textContent = "";
+    renderNarrator(null);
 
     try {
         const ast = parseCode(codeEditor.value);
@@ -161,6 +165,7 @@ function prepareExecution() {
         errorMessage.textContent = error.message;
         renderRuntime(runtime.state);
         renderHighlighter(codeEditor.value, null);
+        renderNarrator({ type: "ERROR", message: error.message });
 
         return false;
     }
@@ -193,6 +198,7 @@ pauseButton.addEventListener("click", () => {
 resetButton.addEventListener("click", () => {
     errorMessage.textContent = "";
     execution.reset();
+    renderNarrator(null);
 });
 
 
@@ -210,6 +216,7 @@ exampleSelect.addEventListener("change", () => {
     codeEditor.value = examples[exampleSelect.value];
     execution.reset();
     errorMessage.textContent = "";
+    renderNarrator(null);
 });
 
 

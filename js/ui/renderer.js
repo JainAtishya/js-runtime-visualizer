@@ -111,3 +111,71 @@ export function renderRuntime(state) {
     renderEventLoop(state.eventLoop);
     renderConsole(state.console);
 }
+
+export function renderNarrator(event) {
+    const narratorBox = document.getElementById("narrator-box");
+    
+    if (!event) {
+        narratorBox.textContent = "Ready to run. Click Run or Step to begin.";
+        return;
+    }
+    
+    let text = "";
+    switch (event.type) {
+        case "CALL_START":
+            if (event.name === "global") {
+                text = `Created the Global Execution Context and pushed it to the Call Stack.`;
+            } else {
+                text = `Function called. Pushed execution context '${event.name}' to the Call Stack.`;
+            }
+            break;
+        case "CALL_END":
+            if (event.name === "global") {
+                text = `Global script execution finished.`;
+            } else {
+                text = `Execution finished. Popped '${event.name}' off the Call Stack.`;
+            }
+            break;
+        case "VARIABLE_DECLARE":
+            text = `Memory allocation: declared variable '${event.name}' with value ${event.value}.`;
+            break;
+        case "VARIABLE_UPDATE":
+            text = `Memory update: assigned value ${event.value} to variable '${event.name}'.`;
+            break;
+        case "PROMISE_UPDATE":
+            if (event.state === "pending") {
+                text = `Created new Promise (ID: ${event.id}) in pending state.`;
+            } else {
+                text = `Promise ${event.id} resolved to ${event.state} with value ${event.value || "undefined"}.`;
+            }
+            break;
+        case "MICROTASK_ADD":
+            text = `Queued microtask '${event.label}' into the Microtask Queue.`;
+            break;
+        case "MICROTASK_START":
+            text = `Event Loop moving microtask '${event.name}' to the Call Stack.`;
+            break;
+        case "TIMER_START":
+            text = `Web API started a timer: ${event.label}.`;
+            break;
+        case "TIMER_DONE":
+            text = `Timer ${event.id} completed. Callback moved to the Task Queue.`;
+            break;
+        case "TASK_START":
+            text = `Event Loop moving task '${event.name}' to the Call Stack.`;
+            break;
+        case "CONSOLE_OUTPUT":
+            text = `Outputting to console: ${event.value}`;
+            break;
+        case "ERROR":
+            text = `Execution halted due to error: ${event.message}`;
+            break;
+        case "EVENT_LOOP":
+            text = `Event Loop: ${event.status}`;
+            break;
+        default:
+            text = `Executing step...`;
+    }
+    
+    narratorBox.textContent = text;
+}

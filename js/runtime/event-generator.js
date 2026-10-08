@@ -929,7 +929,7 @@ export class EventGenerator extends ASTVisitor {
             );
         }
 
-        if (fn.async) {
+        if (fn.node && fn.node.async) {
             return this.callAsyncUserFunction(name, fn, args);
         }
 
