@@ -29,6 +29,8 @@ body {
     color: var(--t1);
     font-size: 13px;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 /* ── header ── */
@@ -42,6 +44,11 @@ body {
     border-bottom: 1px solid var(--border);
 }
 
+.home-link {
+    text-decoration: none;
+    color: inherit;
+}
+
 .app-header h1 {
     font-size: 14px;
     font-weight: 600;
@@ -51,7 +58,7 @@ body {
 
 .app-header p {
     font-size: 12px;
-    color: var(--t3);
+    color: var(--t2);
     border-left: 1px solid var(--border);
     padding-left: 16px;
     margin-left: 4px;
@@ -63,13 +70,20 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 1px;
     background: var(--border);
-    min-height: calc(100vh - 46px - 158px);
+    flex: 1;
+    min-height: 0;
 }
 
 .editor-panel,
 .runtime-panel {
     background: var(--panel);
     padding: 16px;
+    overflow-y: auto;
+}
+
+.editor-panel {
+    display: flex;
+    flex-direction: column;
 }
 
 /* ── panel headings ── */
@@ -80,19 +94,22 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.7px;
-    color: var(--t3);
+    color: var(--t2);
 }
 
 .editor-wrapper {
     position: relative;
     width: 100%;
+    flex: 1;
+    min-height: 200px;
 }
 
 /* ── textarea ── */
 #code-editor {
     width: 100%;
-    min-height: 360px;
-    resize: vertical;
+    height: 100%;
+    min-height: 300px;
+    resize: none;
     padding: 12px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
@@ -159,7 +176,6 @@ body {
     color: var(--accent);
     min-height: 44px;
     line-height: 1.5;
-    margin-top: 4px;
     font-family: 'JetBrains Mono', monospace;
 }
 
@@ -224,7 +240,7 @@ body {
 .section-title {
     font-size: 11px;
     font-weight: 500;
-    color: var(--t3);
+    color: var(--t2);
     text-transform: uppercase;
     letter-spacing: 0.6px;
     margin-bottom: 5px;
@@ -263,21 +279,22 @@ body {
 #promises div      { color: #8b6aaa; border-color: #281e36; background: #1a1224; }
 #microtask-queue div { color: #5a9970; border-color: #1a2e20; background: #0d1f12; }
 #task-queue div    { color: #7a8a9a; border-color: #222a30; background: #131920; }
+#event-loop div    { color: #c4826e; border-color: #38211b; background: #261612; }
 
-/* event loop — just text, no box */
-#event-loop {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    color: var(--t3);
-    padding: 2px 0;
+/* ── bottom panel ── */
+.bottom-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-top: 1px solid var(--border);
 }
 
-/* ── console ── */
-.console-panel {
+.explanation-panel, .console-panel {
     background: var(--panel);
-    border-top: 1px solid var(--border);
     padding: 14px 16px;
 }
+.explanation-panel .panel-header,
 .console-panel .panel-header { margin-bottom: 8px; }
 
 #console-output {
@@ -299,4 +316,21 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 2px; }
 
-@media (max-width: 860px) { .app-container { grid-template-columns: 1fr; } }
+@media (max-width: 860px) {
+    .app-container, .bottom-panel { grid-template-columns: 1fr; }
+}
+
+/* ── footer ── */
+footer {
+    padding: 10px 32px;
+    font-size: 12px;
+    color: var(--t2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+}
+
+footer a { color: var(--t2); text-decoration: none; }
+footer a:hover { color: var(--t1); }

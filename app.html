@@ -11,7 +11,9 @@
 <body>
 
     <header class="app-header">
-        <h1>JS Runtime Visualizer</h1>
+        <a href="index.html" class="home-link">
+            <h1>JS Runtime Visualizer</h1>
+        </a>
         <p>step through JavaScript and see how it executes</p>
     </header>
 
@@ -61,13 +63,6 @@
             </div>
 
             <p id="error-message" class="error-message"></p>
-            
-            <div class="panel-header" style="margin-top: 16px;">
-                <h2>Explanation</h2>
-            </div>
-            <div id="narrator-box" class="narrator-box">
-                Ready to run. Click Run or Step to begin.
-            </div>
 
         </section>
 
@@ -105,21 +100,35 @@
 
             <div class="runtime-section" id="event-loop-section">
                 <div class="section-title">Event Loop</div>
-                <div id="event-loop"></div>
+                <div id="event-loop" class="runtime-container"></div>
             </div>
 
         </section>
 
     </main>
 
+    <div class="bottom-panel">
+        <section class="explanation-panel">
+            <div class="panel-header">
+                <h2>Explanation</h2>
+            </div>
+            <div id="narrator-box" class="narrator-box">
+                Ready to run. Click Run or Step to begin.
+            </div>
+        </section>
 
-    <section class="console-panel">
-        <div class="panel-header">
-            <h2>Console</h2>
-        </div>
-        <pre id="console-output"></pre>
-    </section>
+        <section class="console-panel">
+            <div class="panel-header">
+                <h2>Console</h2>
+            </div>
+            <pre id="console-output"></pre>
+        </section>
+    </div>
 
+    <footer>
+        <span>Built to make the JS event loop less mysterious.</span>
+        <a href="https://github.com/JainAtishya/js-runtime-visualizer" target="_blank">GitHub</a>
+    </footer>
 
     <script type="module" src="js/app.js"></script>
 

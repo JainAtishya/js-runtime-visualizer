@@ -54,8 +54,13 @@ export function renderTaskQueue(taskQueue) {
 
 export function renderEventLoop(eventLoop) {
     const eventLoopElement = document.getElementById("event-loop");
-
-    eventLoopElement.textContent = eventLoop.status;
+    eventLoopElement.innerHTML = "";
+    
+    if (eventLoop.status) {
+        const item = document.createElement("div");
+        item.textContent = eventLoop.status;
+        eventLoopElement.appendChild(item);
+    }
 }
 
 export function renderConsole(consoleMessages) {
