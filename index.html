@@ -138,14 +138,17 @@
         .features {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1px;
-            background: var(--border);
+            gap: 12px;
+            padding: 24px 32px 40px;
+            background: var(--bg);
             border-top: 1px solid var(--border);
         }
 
         .feature {
             background: var(--panel);
-            padding: 28px 28px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 24px;
         }
 
         .feature-label {
