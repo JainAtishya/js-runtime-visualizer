@@ -23,11 +23,14 @@
                 <h2>Editor</h2>
             </div>
 
-            <textarea
-                id="code-editor"
-                spellcheck="false"
-                placeholder="Write your JavaScript here..."
-            ></textarea>
+            <div class="editor-wrapper">
+                <textarea
+                    id="code-editor"
+                    spellcheck="false"
+                    placeholder="Write your JavaScript here..."
+                ></textarea>
+                <pre id="code-highlighter" class="hidden"></pre>
+            </div>
 
             <div class="editor-controls">
                 <button id="run-btn">Run</button>

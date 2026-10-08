@@ -68,6 +68,40 @@ export function renderConsole(consoleMessages) {
     }
 }
 
+export function renderHighlighter(code, activeLine) {
+    const highlighter = document.getElementById("code-highlighter");
+    const editor = document.getElementById("code-editor");
+    
+    if (activeLine === null) {
+        highlighter.classList.add("hidden");
+        editor.style.color = "var(--t1)";
+        return;
+    }
+    
+    // Hide editor text by making it transparent so we still have the cursor/selection if they edit
+    editor.style.color = "transparent";
+    highlighter.classList.remove("hidden");
+    
+    const lines = code.split('\n');
+    let html = "";
+    
+    for (let i = 0; i < lines.length; i++) {
+        let lineText = lines[i] || " "; // keep empty lines taking up space
+        lineText = lineText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        
+        if (i + 1 === activeLine) {
+            html += `<div class="highlight-line">${lineText}</div>`;
+        } else {
+            html += `<div>${lineText}</div>`;
+        }
+    }
+    highlighter.innerHTML = html;
+    
+    // sync scroll position
+    highlighter.scrollTop = editor.scrollTop;
+    highlighter.scrollLeft = editor.scrollLeft;
+}
+
 export function renderRuntime(state) {
     renderCallStack(state.callStack);
     renderWebApis(state.webApis);

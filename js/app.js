@@ -1,6 +1,6 @@
 import { RuntimeEngine } from "./runtime/runtime.js";
 import { ExecutionController } from "./runtime/execution.js";
-import { renderRuntime } from "./ui/renderer.js";
+import { renderRuntime, renderHighlighter } from "./ui/renderer.js";
 
 import { parseCode } from "./runtime/parser.js";
 import { EventGenerator } from "./runtime/event-generator.js";
@@ -12,11 +12,26 @@ const execution = new ExecutionController(
     runtime,
     () => {
         renderRuntime(runtime.state);
+        renderHighlighter(codeEditor.value, runtime.state.activeLine);
     }
 );
 
 
 const codeEditor = document.getElementById("code-editor");
+const codeHighlighter = document.getElementById("code-highlighter");
+
+codeEditor.addEventListener("scroll", () => {
+    codeHighlighter.scrollTop = codeEditor.scrollTop;
+    codeHighlighter.scrollLeft = codeEditor.scrollLeft;
+});
+
+codeEditor.addEventListener("input", () => {
+    // If the user starts typing, abort current execution and hide the overlay
+    if (runtime.state.activeLine !== null) {
+        execution.reset();
+        errorMessage.textContent = "";
+    }
+});
 
 const runButton = document.getElementById("run-btn");
 const stepButton = document.getElementById("step-btn");
@@ -120,6 +135,7 @@ function prepareExecution() {
     } catch (error) {
         errorMessage.textContent = error.message;
         renderRuntime(runtime.state);
+        renderHighlighter(codeEditor.value, null);
 
         return false;
     }

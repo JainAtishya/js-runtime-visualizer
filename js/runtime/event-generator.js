@@ -18,6 +18,12 @@ export class EventGenerator extends ASTVisitor {
     reset() {
 
         this.timeline = [];
+        const originalPush = this.timeline.push.bind(this.timeline);
+        this.timeline.push = function(event) {
+            event.line = this.currentLine;
+            return originalPush(event);
+        }.bind(this);
+        
         this.variables = {};
         this.resolvers = {};
         this.timers = [];
@@ -28,6 +34,18 @@ export class EventGenerator extends ASTVisitor {
         this.nextMicrotaskId = 1;
         this.nextPromiseId = 1;
         this.depth = 0;
+        this.currentLine = null;
+    }
+
+
+    visit(node) {
+        const prevLine = this.currentLine;
+        if (node && node.loc && node.type !== "Program") {
+            this.currentLine = node.loc.start.line;
+        }
+        const result = super.visit(node);
+        this.currentLine = prevLine;
+        return result;
     }
 
 
@@ -249,12 +267,17 @@ export class EventGenerator extends ASTVisitor {
             const info = this.extractAwait(stmt);
 
             if (info) {
+                
+                const stmtLine = stmt.loc ? stmt.loc.start.line : this.currentLine;
+                const prevLine = this.currentLine;
+                this.currentLine = stmtLine;
 
                 const awaitedValue = this.evaluateNode(info.expr);
                 const awaitedPromise = this.toPromise(awaitedValue);
                 awaitedPromise.handled = true;
 
                 this.depth--;
+                this.currentLine = null;
                 this.timeline.push({ type: "CALL_END", name: label });
 
                 const remaining = statements.slice(i + 1);
@@ -262,9 +285,16 @@ export class EventGenerator extends ASTVisitor {
 
                 const continuation = (resolvedValue) => {
 
+                    // Structural resume, don't tie to a line yet
+                    const contPrevLine = this.currentLine;
+                    this.currentLine = null;
+                    
                     this.timeline.push({ type: "CALL_START", name: label });
                     this.depth++;
                     this.variables = { ...savedVars };
+
+                    // Assignment happens on the line of the await
+                    this.currentLine = stmtLine;
 
                     if (info.varName) {
                         this.variables[info.varName] = resolvedValue;
@@ -278,11 +308,15 @@ export class EventGenerator extends ASTVisitor {
                     if (info.isReturn) {
                         this.settle(returnPromise, "fulfilled", resolvedValue);
                         this.depth--;
+                        
+                        this.currentLine = null;
                         this.timeline.push({ type: "CALL_END", name: label });
                         this.variables = outerVariables;
+                        this.currentLine = contPrevLine;
                         return;
                     }
 
+                    this.currentLine = contPrevLine;
                     this.runAsyncSegment(
                         remaining,
                         returnPromise,
@@ -880,6 +914,17 @@ export class EventGenerator extends ASTVisitor {
 
 
     evaluateNode(node) {
+
+        const prevLine = this.currentLine;
+        if (node && node.loc) {
+            this.currentLine = node.loc.start.line;
+        }
+        const result = this.evaluateNodeInternal(node);
+        this.currentLine = prevLine;
+        return result;
+    }
+
+    evaluateNodeInternal(node) {
 
         if (!node) {
             return undefined;

@@ -22,12 +22,18 @@ export class RuntimeEngine {
 
             console: [],
 
-            status: "idle"
+            status: "idle",
+
+            activeLine: null
         };
     }
 
 
     processEvent(event) {
+
+        if (event.line !== undefined) {
+            this.state.activeLine = event.line;
+        }
 
         switch (event.type) {
 
@@ -295,7 +301,9 @@ export class RuntimeEngine {
 
             console: [],
 
-            status: "idle"
+            status: "idle",
+
+            activeLine: null
         };
     }
 }
