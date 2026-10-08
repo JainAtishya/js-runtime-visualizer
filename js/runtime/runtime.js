@@ -43,6 +43,10 @@ export class RuntimeEngine {
                 this.variableDeclare(event);
                 break;
 
+            case "VARIABLE_UPDATE":
+                this.variableUpdate(event);
+                break;
+
             case "CONSOLE_OUTPUT":
                 this.consoleOutput(event);
                 break;
@@ -129,6 +133,25 @@ export class RuntimeEngine {
             event.name,
             event.value
         );
+    }
+
+
+    variableUpdate(event) {
+
+        // Find the most recent context that has this variable and update it
+        for (let i = this.state.callStack.length - 1; i >= 0; i--) {
+            const context = this.state.callStack[i];
+            if (context.hasVariable(event.name)) {
+                context.updateVariable(event.name, event.value);
+                return;
+            }
+        }
+        
+        // Fallback if not found in any context
+        const currentContext = this.getCurrentContext();
+        if (currentContext) {
+            currentContext.updateVariable(event.name, event.value);
+        }
     }
 
 

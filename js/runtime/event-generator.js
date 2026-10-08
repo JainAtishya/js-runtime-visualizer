@@ -985,6 +985,13 @@ export class EventGenerator extends ASTVisitor {
         }
 
         this.variables[name] = result;
+
+        this.timeline.push({
+            type: "VARIABLE_UPDATE",
+            name: name,
+            value: this.show(result)
+        });
+
         return result;
     }
 
@@ -1008,6 +1015,13 @@ export class EventGenerator extends ASTVisitor {
         }
 
         this.variables[name] = newVal;
+
+        this.timeline.push({
+            type: "VARIABLE_UPDATE",
+            name: name,
+            value: this.show(newVal)
+        });
+
         return node.prefix ? newVal : oldVal;
     }
 }

@@ -15,7 +15,17 @@ function renderList(elementId, items, reverse = false) {
 }
 
 export function renderCallStack(callStack) {
-    const names = callStack.map((context) => context.name);
+    const names = callStack.map((context) => {
+        let label = context.name;
+        
+        const varKeys = Object.keys(context.variables);
+        if (varKeys.length > 0) {
+            const vars = varKeys.map(k => `${k}: ${context.variables[k]}`).join(", ");
+            label += ` (${vars})`;
+        }
+        
+        return label;
+    });
 
     renderList("call-stack", names, true);
 }

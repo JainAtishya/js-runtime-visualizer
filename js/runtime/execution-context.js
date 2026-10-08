@@ -15,6 +15,12 @@ export class ExecutionContext {
     }
 
 
+    updateVariable(name, value) {
+
+        this.variables[name] = value;
+    }
+
+
     hasVariable(name) {
 
         return Object.prototype.hasOwnProperty.call(
