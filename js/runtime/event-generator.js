@@ -20,6 +20,9 @@ export class EventGenerator extends ASTVisitor {
         this.timeline = [];
         const originalPush = this.timeline.push.bind(this.timeline);
         this.timeline.push = function(event) {
+            if (this.timeline.length > 1500 && event.type !== "ERROR" && event.type !== "EVENT_LOOP") {
+                throw new JSError("Execution limit reached (possible infinite loop or too many events)");
+            }
             event.line = this.currentLine;
             return originalPush(event);
         }.bind(this);
@@ -169,23 +172,32 @@ export class EventGenerator extends ASTVisitor {
 
             this.now = timer.time;
 
-            this.timeline.push({
-                type: "TIMER_DONE",
-                id: timer.id
-            });
+            if (!timer.isInterval) {
+                this.timeline.push({
+                    type: "TIMER_DONE",
+                    id: timer.id
+                });
+            }
+
+            const name = timer.isInterval ? "setInterval callback" : "setTimeout callback";
 
             this.timeline.push({
                 type: "TASK_START",
                 id: timer.id,
-                name: "setTimeout callback"
+                name: name
             });
 
             this.callFunction(timer.callback, [], timer.scope);
 
             this.timeline.push({
                 type: "CALL_END",
-                name: "setTimeout callback"
+                name: name
             });
+
+            if (timer.isInterval) {
+                timer.time = this.now + timer.delay;
+                this.timers.push(timer);
+            }
 
             this.runMicrotasks();
         }
@@ -537,8 +549,15 @@ export class EventGenerator extends ASTVisitor {
         if (callee.type === "Identifier") {
 
             if (callee.name === "setTimeout") {
-                this.addTimer(node);
-                return;
+                return this.addTimer(node, false);
+            }
+            
+            if (callee.name === "setInterval") {
+                return this.addTimer(node, true);
+            }
+            
+            if (callee.name === "clearTimeout" || callee.name === "clearInterval") {
+                return this.clearTimer(node);
             }
 
             if (callee.name === "queueMicrotask") {
@@ -803,25 +822,45 @@ export class EventGenerator extends ASTVisitor {
     }
 
 
-    addTimer(node) {
+    addTimer(node, isInterval = false) {
 
         const callback = this.resolveFunction(node.arguments[0]);
-        const delay = node.arguments[1] ? node.arguments[1].value : 0;
+        const delay = node.arguments[1] ? this.evaluateNode(node.arguments[1]) : 0;
 
         const timer = {
             id: this.nextTimerId++,
             callback: callback,
+            delay: delay,
             time: this.now + delay,
+            isInterval: isInterval,
             scope: { ...this.resolvers }
         };
 
         this.timers.push(timer);
 
+        const name = isInterval ? "setInterval" : "setTimeout";
+
         this.timeline.push({
             type: "TIMER_START",
             id: timer.id,
-            label: `setTimeout (${delay}ms)`
+            label: `${name} (${delay}ms)`
         });
+        
+        return timer.id;
+    }
+
+    clearTimer(node) {
+        const id = node.arguments[0] ? this.evaluateNode(node.arguments[0]) : undefined;
+        const index = this.timers.findIndex(t => t.id === id);
+        
+        if (index !== -1) {
+            this.timers.splice(index, 1);
+            this.timeline.push({
+                type: "TIMER_DONE",
+                id: id
+            });
+        }
+        return undefined;
     }
 
 
