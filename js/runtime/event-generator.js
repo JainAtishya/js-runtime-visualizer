@@ -27,8 +27,8 @@ export class EventGenerator extends ASTVisitor {
             return originalPush(event);
         }.bind(this);
         
-        this.variables = {};
-        this.resolvers = {};
+        this.variables = Object.create(null);
+        this.resolvers = Object.create(null);
         this.timers = [];
         this.microtasks = [];
         this.promises = [];
@@ -214,12 +214,21 @@ export class EventGenerator extends ASTVisitor {
             return fn(...args);
         }
 
-        this.resolvers = { ...scope };
+        let actualFn = fn;
+        let fnScope = this.variables;
+
+        if (fn.isFunctionClosure) {
+            actualFn = fn.node;
+            fnScope = fn.scope;
+        }
+
+        const outerResolvers = this.resolvers;
+        this.resolvers = Object.create(scope || null);
 
         const outerVariables = this.variables;
-        this.variables = { ...outerVariables };
+        this.variables = Object.create(fnScope);
 
-        fn.params.forEach((param, index) => {
+        actualFn.params.forEach((param, index) => {
 
             this.variables[param.name] = args[index];
 
@@ -230,15 +239,16 @@ export class EventGenerator extends ASTVisitor {
             });
         });
 
-        const result = this.runBody(fn);
+        const result = this.runBody(actualFn);
 
         this.variables = outerVariables;
+        this.resolvers = outerResolvers;
 
         return result;
     }
 
 
-    callAsyncUserFunction(name, fn, args) {
+    callAsyncUserFunction(name, fnClosure, args) {
 
         const returnPromise = this.newPromise();
         const label = `${name}()`;
@@ -247,7 +257,9 @@ export class EventGenerator extends ASTVisitor {
         this.depth++;
 
         const outerVariables = this.variables;
-        this.variables = { ...outerVariables };
+        this.variables = Object.create(fnClosure.scope);
+        
+        const fn = fnClosure.node;
 
         fn.params.forEach((param, index) => {
 
@@ -293,7 +305,7 @@ export class EventGenerator extends ASTVisitor {
                 this.timeline.push({ type: "CALL_END", name: label });
 
                 const remaining = statements.slice(i + 1);
-                const savedVars = { ...this.variables };
+                const savedVars = this.variables;
 
                 const continuation = (resolvedValue) => {
 
@@ -303,7 +315,7 @@ export class EventGenerator extends ASTVisitor {
                     
                     this.timeline.push({ type: "CALL_START", name: label });
                     this.depth++;
-                    this.variables = { ...savedVars };
+                    this.variables = savedVars;
 
                     // Assignment happens on the line of the await
                     this.currentLine = stmtLine;
@@ -460,7 +472,11 @@ export class EventGenerator extends ASTVisitor {
 
     visitFunctionDeclaration(node) {
 
-        this.variables[node.id.name] = node;
+        this.variables[node.id.name] = {
+            isFunctionClosure: true,
+            node: node,
+            scope: this.variables
+        };
     }
 
 
@@ -694,10 +710,20 @@ export class EventGenerator extends ASTVisitor {
         const outerResolvers = this.resolvers;
         const outerVariables = this.variables;
 
-        this.resolvers = { ...outerResolvers };
-        this.variables = { ...outerVariables };
+        this.resolvers = Object.create(outerResolvers);
+        this.variables = Object.create(outerVariables);
 
-        const [resolveParam, rejectParam] = executor.params;
+        const fn = {
+            isFunctionClosure: true,
+            node: {
+                type: "FunctionExpression",
+                params: executor.params || executor.node.params,
+                body: executor.body || executor.node.body
+            },
+            scope: this.variables
+        };
+
+        const [resolveParam, rejectParam] = fn.node.params;
 
         if (resolveParam) {
             this.resolvers[resolveParam.name] = {
@@ -718,7 +744,7 @@ export class EventGenerator extends ASTVisitor {
             name: "Promise executor"
         });
 
-        this.runBody(executor);
+        this.runBody(fn.node);
 
         this.timeline.push({
             type: "CALL_END",
@@ -866,11 +892,7 @@ export class EventGenerator extends ASTVisitor {
 
     isFunction(value) {
 
-        return Boolean(value) && [
-            "ArrowFunctionExpression",
-            "FunctionExpression",
-            "FunctionDeclaration"
-        ].includes(value.type);
+        return Boolean(value) && value.isFunctionClosure === true;
     }
 
 
@@ -972,12 +994,12 @@ export class EventGenerator extends ASTVisitor {
         switch (node.type) {
 
             case "Identifier":
-
+                
                 if (node.name === "undefined") {
                     return undefined;
                 }
 
-                if (!Object.hasOwn(this.variables, node.name)) {
+                if (!(node.name in this.variables)) {
                     throw new JSError(
                         `ReferenceError: ${node.name} is not defined`
                     );
@@ -1002,7 +1024,11 @@ export class EventGenerator extends ASTVisitor {
 
             case "ArrowFunctionExpression":
             case "FunctionExpression":
-                return node;
+                return {
+                    isFunctionClosure: true,
+                    node: node,
+                    scope: this.variables
+                };
 
             case "UnaryExpression":
                 if (node.operator === "-") {
@@ -1053,22 +1079,27 @@ export class EventGenerator extends ASTVisitor {
         const name = node.left.name;
         const value = this.evaluateNode(node.right);
 
+        let targetScope = this.variables;
+        while (targetScope && !Object.hasOwn(targetScope, name) && Object.getPrototypeOf(targetScope) !== null) {
+            targetScope = Object.getPrototypeOf(targetScope);
+        }
+
         let result;
         if (node.operator === "=") {
             result = value;
         } else if (node.operator === "+=") {
-            result = this.variables[name] + value;
+            result = targetScope[name] + value;
         } else if (node.operator === "-=") {
-            result = this.variables[name] - value;
+            result = targetScope[name] - value;
         } else if (node.operator === "*=") {
-            result = this.variables[name] * value;
+            result = targetScope[name] * value;
         } else if (node.operator === "/=") {
-            result = this.variables[name] / value;
+            result = targetScope[name] / value;
         } else {
             throw new JSError(`TypeError: unsupported assignment operator: ${node.operator}`);
         }
 
-        this.variables[name] = result;
+        targetScope[name] = result;
 
         this.timeline.push({
             type: "VARIABLE_UPDATE",
@@ -1087,7 +1118,13 @@ export class EventGenerator extends ASTVisitor {
         }
 
         const name = node.argument.name;
-        const oldVal = this.variables[name];
+        
+        let targetScope = this.variables;
+        while (targetScope && !Object.hasOwn(targetScope, name) && Object.getPrototypeOf(targetScope) !== null) {
+            targetScope = Object.getPrototypeOf(targetScope);
+        }
+        
+        const oldVal = targetScope[name];
         let newVal = oldVal;
 
         if (node.operator === "++") {
@@ -1098,7 +1135,7 @@ export class EventGenerator extends ASTVisitor {
             throw new JSError(`TypeError: unsupported update operator: ${node.operator}`);
         }
 
-        this.variables[name] = newVal;
+        targetScope[name] = newVal;
 
         this.timeline.push({
             type: "VARIABLE_UPDATE",
