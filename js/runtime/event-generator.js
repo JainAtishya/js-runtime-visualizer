@@ -430,6 +430,30 @@ export class EventGenerator extends ASTVisitor {
     }
 
 
+    visitWhileStatement(node) {
+
+        while (this.evaluateNode(node.test)) {
+            this.visit(node.body);
+        }
+    }
+
+
+    visitForStatement(node) {
+
+        if (node.init) {
+            this.visit(node.init);
+        }
+
+        while (!node.test || this.evaluateNode(node.test)) {
+            this.visit(node.body);
+
+            if (node.update) {
+                this.evaluateNode(node.update);
+            }
+        }
+    }
+
+
     visitBlockStatement(node) {
 
         this.runStatements(node.body);
@@ -883,6 +907,12 @@ export class EventGenerator extends ASTVisitor {
             case "BinaryExpression":
                 return this.visitBinaryExpression(node);
 
+            case "AssignmentExpression":
+                return this.evaluateAssignment(node);
+
+            case "UpdateExpression":
+                return this.evaluateUpdate(node);
+
             case "NewExpression":
                 return this.createPromise(node);
 
@@ -927,5 +957,57 @@ export class EventGenerator extends ASTVisitor {
             },
             {}
         );
+    }
+
+
+    evaluateAssignment(node) {
+
+        if (node.left.type !== "Identifier") {
+            throw new JSError("TypeError: can only assign to variables");
+        }
+
+        const name = node.left.name;
+        const value = this.evaluateNode(node.right);
+
+        let result;
+        if (node.operator === "=") {
+            result = value;
+        } else if (node.operator === "+=") {
+            result = this.variables[name] + value;
+        } else if (node.operator === "-=") {
+            result = this.variables[name] - value;
+        } else if (node.operator === "*=") {
+            result = this.variables[name] * value;
+        } else if (node.operator === "/=") {
+            result = this.variables[name] / value;
+        } else {
+            throw new JSError(`TypeError: unsupported assignment operator: ${node.operator}`);
+        }
+
+        this.variables[name] = result;
+        return result;
+    }
+
+
+    evaluateUpdate(node) {
+
+        if (node.argument.type !== "Identifier") {
+            throw new JSError("TypeError: can only update variables");
+        }
+
+        const name = node.argument.name;
+        const oldVal = this.variables[name];
+        let newVal = oldVal;
+
+        if (node.operator === "++") {
+            newVal++;
+        } else if (node.operator === "--") {
+            newVal--;
+        } else {
+            throw new JSError(`TypeError: unsupported update operator: ${node.operator}`);
+        }
+
+        this.variables[name] = newVal;
+        return node.prefix ? newVal : oldVal;
     }
 }

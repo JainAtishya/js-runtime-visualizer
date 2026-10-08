@@ -87,7 +87,19 @@ console.log("end");`,
 
 run();
 setTimeout(() => console.log("timeout"), 0);
-console.log("sync");`
+console.log("sync");`,
+
+    loops: `let count = 0;
+for (let i = 0; i < 2; i++) {
+    console.log("for loop", i);
+    count += i;
+}
+
+while (count > 0) {
+    console.log("while loop", count);
+    count--;
+}
+console.log("done");`
 };
 
 
