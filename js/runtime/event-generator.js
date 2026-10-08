@@ -1012,6 +1012,12 @@ export class EventGenerator extends ASTVisitor {
 
             case "BinaryExpression":
                 return this.visitBinaryExpression(node);
+                
+            case "LogicalExpression":
+                return this.evaluateLogicalExpression(node);
+                
+            case "ConditionalExpression":
+                return this.evaluateConditionalExpression(node);
 
             case "AssignmentExpression":
                 return this.evaluateAssignment(node);
@@ -1067,6 +1073,25 @@ export class EventGenerator extends ASTVisitor {
             },
             {}
         );
+    }
+    
+    evaluateLogicalExpression(node) {
+        const left = this.evaluateNode(node.left);
+        
+        if (node.operator === "&&") {
+            return left ? this.evaluateNode(node.right) : left;
+        } else if (node.operator === "||") {
+            return left ? left : this.evaluateNode(node.right);
+        } else if (node.operator === "??") {
+            return (left !== null && left !== undefined) ? left : this.evaluateNode(node.right);
+        }
+        
+        throw new JSError(`TypeError: unsupported logical operator: ${node.operator}`);
+    }
+    
+    evaluateConditionalExpression(node) {
+        const test = this.evaluateNode(node.test);
+        return test ? this.evaluateNode(node.consequent) : this.evaluateNode(node.alternate);
     }
 
 

@@ -124,7 +124,22 @@ const id = setInterval(() => {
         clearInterval(id);
         console.log("stopped");
     }
-}, 500);`
+}, 500);`,
+
+    logical: `function check(age) {
+    const status = age >= 18 ? "Adult" : "Minor";
+    console.log("Status:", status);
+    
+    // Short-circuiting examples
+    const isAllowed = age >= 18 && "Yes";
+    const defaultName = null || "Guest";
+    
+    console.log("Allowed?", isAllowed);
+    console.log("Name:", defaultName);
+}
+
+check(20);
+check(16);`
 };
 
 
